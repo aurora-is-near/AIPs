@@ -16,7 +16,7 @@ The goal of the AIP project is to document standardized protocols for Aurora Eng
 | ------------------ | -------------------------- | -------- | ------ |
 | [1](AIPs/aip-1.md) | AIP Purpose and Guidelines | @mfornet | Draft  |
 
-This project took a lot of inspiration from the [EIPs](https://github.com/ethereum/EIPs/) and [NEPs](https://github.com/near/NEPs/) projects.
+This project was derived heavily from [EIPs](https://github.com/ethereum/EIPs/) and [NEPs](https://github.com/near/NEPs/).
 
 <!-- TODO: Kick off Spec section -->
 <!-- TODO: Note on Spec vs AIP section -->
