@@ -195,7 +195,10 @@ If you are interested in assuming ownership of an AIP, send a message asking to 
 
 The current AIP editors are
 
+-   Arto Bendiken (@artob)
 -   Marcelo Fornet (@mfornet)
+-   Joshua Bouw (@joshuajbouw)
+-   Kirill Abramov (@sept-en)
 
 <!-- Emeritus AIP editors are -->
 <!-- Include section after there is an emeritus AIP Editor -->
