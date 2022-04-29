@@ -1,7 +1,7 @@
 ---
 aip: 1
 title: AIP Purpose and Guidelines
-status: Review
+status: Live
 type: Meta
 author: Marcelo Fornet (@mfornet)
 created: 2022-04-20
