@@ -1,14 +1,19 @@
 ---
-aip: 9999
+aip: 2
 title: Cross Contract Calls
 description: Allow communication between Aurora and NEAR smart contracts.
 author: Marcelo Fornet (@mfornet), Michael Birch (@birchmd)
-discussions-to: <URL>
+discussions-to: https://forum.aurora.dev/t/cross-contract-calls/304
 status: Draft
 type: Standards Track
 category: Aurora-Engine
 created: 2022-05-27
 ---
+
+Previous discussions about cross contract calls can be found at:
+
+-   https://github.com/aurora-is-near/aurora-engine/discussions/461
+-   https://github.com/aurora-is-near/aurora-engine/discussions/291
 
 ## Abstract
 
