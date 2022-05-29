@@ -12,14 +12,18 @@ struct Combinator {
     /// Reference to the previous promise in the same batch to apply the combinator with.
     index: u8,
 }
+
+/// Wrapper type that validates the data is a valid method.
+type Method(String);
+
 /// Promise arguments passed to the router.
 struct Promise {
     /// Target account id on NEAR to be called
     target: AccountId,
     /// Method to be called
-    method: String,
+    method: Method,
     /// Bytes to use as input to the function
-    payload: Bytes,
+    payload: Vec<u8>,
     /// Amount of gas to attach to the promise
     near_gas: Gas,
     /// Amount of NEAR to attach to the promise
