@@ -1,9 +1,9 @@
 ---
-aip: 9999
+aip: 3
 title: ERC20 interface support for ETH
 description: Support ERC20 interface for native ETH on Aurora without a wrapper.
 author: Marcelo Fornet (@mfornet)
-discussions-to: <URL>
+discussions-to: https://forum.aurora.dev/t/native-erc20-support-for-eth/309
 status: Draft
 type: Standards Track
 category (*only required for Standards Track): Aurora-Engine
