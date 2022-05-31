@@ -14,7 +14,7 @@ struct Combinator {
 }
 
 /// Wrapper type that validates the data is a valid method.
-type Method(String);
+struct Method(String);
 
 /// Promise arguments passed to the router.
 struct Promise {
