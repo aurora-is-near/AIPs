@@ -53,9 +53,9 @@ The following is the interfaces for both contracts. See more details in [Referen
 
 ```rs
 trait AuroraRouter {
-    pub fn schedule(&mut self, promises: Vec<Promise>);
+    pub fn schedule(&mut self, promises: Promise);
 
-    pub fn pull(&mut self, promises_index: Vec<u64>, total_gas: Gas, total_balance: Balance) -> Vec<Option<Vec<Promise>>>;
+    pub fn pull(&mut self, promises_index: Vec<u64>, total_gas: Gas, total_balance: Balance) -> Vec<Option<Promise>>;
 }
 
 trait AsyncAurora {
@@ -69,9 +69,9 @@ trait AsyncAurora {
 
 Aurora Router is a precompile on Aurora with the address computed as `keccak("auroraRouter")[12:] = 0x5fd6651543676f113735613f9ccc29d9ff0a5162`. See how to interact with its functions on [reference.rs](../assets/aip-cross_contract_calls/reference.rs).
 
-_AuroraRouter::schedule_ allows the user to store a list of promises on the contract. No validation is performed on each individual promise, so it is up to the user creating it to make sure it is correct. Promises scheduled in the same batch can be combined using NEAR combinators: `then` / `and`. You can reference to a particular promise using as index the position on the list.
+_AuroraRouter::schedule_ allows the user to store a list of promises on the contract. No validation is performed on each individual promise, so it is up to the user creating it to make sure it is correct. Promises can be combined using NEAR combinators: `then` / `and`.
 
-When `schedule` is called an event is emitted with using as value promise_index, which is a unique identifier for the promise.
+When `schedule` is called an event is emitted with value `promise_index`, which is a unique identifier for the promise.
 
 _AuroraRouter::pull_ receives a list of promise indexes and the total gas and balance available for executions. It loads relevant scheduled promises, verifies there is enough gas and balance for execution, removes the promises from storage and returns the promises. This function can only be called from AsyncAurora. Promises will be removed from storage only if it is guaranteed that enough resources are dedicated to it.
 

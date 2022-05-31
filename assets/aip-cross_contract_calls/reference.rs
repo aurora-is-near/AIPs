@@ -1,23 +1,11 @@
 //! Reference implementation of contracts for Aurora Cross Contract Calls
 //! See more details on [aip-cross_contract_calls]
 
-enum CombinatorMode {
-    Then,
-    And,
-}
-
-struct Combinator {
-    /// Combinator that must be applied.
-    mode: CombinatorMode,
-    /// Reference to the previous promise in the same batch to apply the combinator with.
-    index: u8,
-}
-
 /// Wrapper type that validates the data is a valid method.
 struct Method(String);
 
-/// Promise arguments passed to the router.
-struct Promise {
+/// Raw promise data. With no combinators.
+struct PromiseCall {
     /// Target account id on NEAR to be called
     target: AccountId,
     /// Method to be called
@@ -28,8 +16,14 @@ struct Promise {
     near_gas: Gas,
     /// Amount of NEAR to attach to the promise
     near_balance: Balance,
-    /// Description to combine this promise with previous promises
-    combinator: Option<Combinator>,
+}
+
+/// Promise argument passed to the router. It is a recursive data structure, where combinators
+/// should be automatically applied on inner promises.
+enum Promise {
+    Then{base: Box<Promise>, callback: Box<Promise>},
+    And(Box<Promise>, Box<Promise>),
+    Call(Promise)
 }
 
 /// Aurora Router
@@ -73,14 +67,14 @@ impl AuroraRouter {
     /// to make sure it was not reverted before.
     ///
     /// Selector: sha3("schedule()") = 0xb0604a26
-    pub fn schedule(&mut self, promises: Vec<Promise>) -> u64 {
-        for mut promise in promises {
+    pub fn schedule(&mut self, promise: Promise) -> u64 {
+        /// Recursively iterate through all promises and yield each promise call
+        for mut promise_call in promise.iter_calls() {
             // Extend payload with message sender
-            promise.payload = [0, aurora_context::message_sender(), promise.payload].concat();
+            promise_call.payload = [0, aurora_context::message_sender(), promise_call.payload].concat();
         }
-        let index = self.last_used_index;
 
-        self.promises.insert(index, promises);
+        self.promises.insert(self.last_used_index, promise);
         self.last_used_index += 1;
 
         index
@@ -90,17 +84,17 @@ impl AuroraRouter {
     /// only be called using the `call` interface in `aurora` contract.
     ///
     /// Selector: sha3("pull()") = 0x329eb839
-    pub fn pull(&mut self, indexes: Vec<u64>, total_gas: Gas, total_balance: Balance) -> Vec<Option<Vec<PromiseOutput>>> {
+    pub fn pull(&mut self, indexes: Vec<u64>, total_gas: Gas, total_balance: Balance) -> Vec<Option<Promise>> {
         // Only async aurora contract can pull promises out of the contract
         assert_eq!(env::predecessor_account_id(), self.async_aurora);
 
         let mut required_gas = 0;
         let mut required_balance = 0;
 
-        indexes.iter().map(|index| {
+        let promises = indexes.iter().map(|index| {
             // Find and remove the promises at position index
             // If there is no promise, None is returned instead
-            let promise = self.promises.pop(index)
+            let promise = self.promises.pop(index)?;
 
             if let Some(promise) = promise {
                 required_gas += promise.near_gas;
@@ -113,6 +107,8 @@ impl AuroraRouter {
         // The transaction should only be executed if there is enough resources for its execution.
         assert!(required_gas <= total_gas);
         assert!(required_balance <= total_balance);
+
+        promises
     }
 }
 
@@ -174,32 +170,22 @@ impl AsyncAurora {
 
     pub fn execute(&mut self, aurora: AccountId) {
         // Parse promises values from the result of the pull to aurora engine.
-        let promises: Vec<Option<Vec<Promise>>> = parse_promises();
+        let promises: Vec<Option<Promise>> = parse_promises();
         // Keep only batches that has Some
-        let promises: Vec<Vec<Promise>> = promises.filter(|promise_batch| promise_batch);
+        let promises: Vec<Promise> = promises.filter(|promise| promise);
 
-        for mut promise in promises.flatten() {
-            // Parse and rebuild the payload according to the spec, where proper authentication information is provided.
-            let (version, address, payload) = parse_payload(promise.payload);
-            promise.payload = [0, aurora.len() as u8, aurora, address, payload].concat();
+        for mut promise in promises {
+            for mut inner_promise in promise.iter_call() {
+                // Parse and rebuild the payload according to the spec. Authenticate each message
+                // with the account id of the engine reporting this value.
+                let (version, address, payload) = parse_payload(promise.payload);
+                promise.payload = [0, aurora.len() as u8, aurora, address, payload].concat();
+            }
         }
 
-
-        for promise_batch in promises {
-            // Keep track of previous promises. Required for applying combinators.
-            let mut all_promises_id = vec![];
-            for promise in promise_batch {
-                // Create a promise
-                let mut promise_id = create_promise(promise);
-
-                // Combine it with a previous promise if required
-                if promise.combinator.is_some() {
-                    promise_id = combine_promise(promise_id, all_promises_id);
-                }
-
-                // Store the promise reference
-                all_promises_id.push(promise_id);
-            }
+        for promise in promises {
+            // Create the promise. It needs to properly handle nested promises that uses combinators then/and.
+            create_promise(promise);
         }
     }
 }
