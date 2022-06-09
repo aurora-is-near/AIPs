@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant User
+    participant Source Aurora
+    participant Aurora Router
+    participant Async Aurora
+    participant Target Near
+    User ->> Async Aurora: Initiate async tx
+    Async Aurora -->> Source Aurora: Initiate tx
+
+    Source Aurora ->> Aurora Router: schedule("call to target.near")
+    Note left of Aurora Router: Save the promise payload on storage
+    Note left of Aurora Router: Emit an event with index of the promise
+    Aurora Router ->> Source Aurora: Continue with the tx
+
+
+    Async Aurora -->> Aurora Router: Pull payload
+    Aurora Router -->> Async Aurora: Callback with payload
+
+    Async Aurora -->> Target Near: Executes the promise
