@@ -23,7 +23,7 @@ struct PromiseCall {
 enum Promise {
     Then{base: Box<Promise>, callback: Box<Promise>},
     And(Box<Promise>, Box<Promise>),
-    Call(Promise)
+    Call(PromiseCall)
 }
 
 /// Aurora Router
