@@ -1,0 +1,27 @@
+---
+aip: 3
+title: Split NEP-141 logic outside of Engine
+description: Split NEP-141 logic outside of Engine as separate independent smart contract.
+author: Evgeny Ukhanov (@mrLSD)
+discussions-to: https://forum.aurora.dev/t/split-nep-141-logic-outside-of-engine/368
+status: Draft
+type: Standards Track
+category: Aurora-Engine
+created: 2022-07-14
+---
+
+## Abstract
+
+## Specification
+
+## Rationale
+
+## Backwards Compatibility
+
+## Test Cases
+
+## Security Considerations
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
