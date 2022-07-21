@@ -12,6 +12,26 @@ created: 2022-07-14
 
 ## Abstract
 
+At the moment, the NEP-141 logic is one of the main parts of the Aurora 
+contract. NEP-141 - implements the fungible token logic, which is the 
+link between the Ethereum and NEAR ecosystem tokens.
+
+Due to the specifics of the original goals of the Aurora contract, 
+the logic of NEP-141 has become an integral part of the core contract itself.
+
+However, further use and development of Aurora showed that this solution 
+has a number of shortcomings, which are proposed to be solved in this 
+proposal.
+
+In the most general form, these include:
+
+* improved security (due to a number of vulnerabilities found recently)
+
+* more flexible changes (this will not require updating the entire aurora contract)
+
+The result of the split should be a separate contract that the Aurora 
+contract interacts with through cross-contract calls.
+
 ## Specification
 
 ## Rationale
