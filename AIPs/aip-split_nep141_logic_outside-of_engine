@@ -71,6 +71,12 @@ Aurora contract. The interaction interface remains the same.
 
 ## Rationale
 
+The main design goal is to simplify the logic of the NEP-141, compared 
+to the complicated representation in the current Aurora contract. 
+This should reduce the cognitive load when getting acquainted with 
+the code base and the ability to quickly and efficiently maintain 
+the contract code with a wide range of stakeholders.
+
 ## Backwards Compatibility
 
 When splitting the contract and transferring the NEP-141 logic to a 
@@ -82,6 +88,24 @@ will not notice any changes and is not required to make any edits or
 changes to interact with the Aurora contract.
 
 ## Test Cases
+
+The current unit tests for the NEP-141 logic will be transferred to 
+the new contract. They will also be revised and reworked under the 
+terms of an independent contract.
+
+An important feature is that all Aurora tests should still work 
+successfully, since the front end for users and contracts remains 
+the same.
+
+## Reference Implementation
+
+The NEAR template will be used as a reference implementation
+for NEP-141. 
+TODO: Link to template
+
+It is important to note that the current implementation of Aurora uses 
+a no-std implementation. The use of an existing template implies the 
+use of `std` as well as `near-sdk`.
 
 ## Security Considerations
 
