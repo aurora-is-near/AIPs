@@ -32,11 +32,54 @@ In the most general form, these include:
 The result of the split should be a separate contract that the Aurora 
 contract interacts with through cross-contract calls.
 
+## Motivation
+
+One of the features of NEAR contracts is the interaction between 
+contracts. Due to this approach, it is possible to create an entire 
+ecosystem in which many users and developers are involved.
+
+Putting the logic of NEP-141 into a separate contract solves important 
+tasks, the cornerstone of which is the interaction between contracts:
+
+* a separate code base, and as a result, the development of the contract, 
+independent of the development of the Aurora contract
+
+* flexible contract deployment. Changes to the new contract will not 
+affect the Aurora contract. And this excludes the generation of new 
+errors, due to the immutability of the Aurora contract.
+
+* quick and precise response and corrections in case of errors or other 
+emergency situations
+
+We especially note that isolating the functionality and placing it in a 
+separate contract, including through isolating the code base, the 
+process of developing and deploying the contract, solves an important 
+security problem: faster detection and quick response to 
+security-related issues. And this is not only about flexibility, but 
+also about reliability and stability. This increases the business value 
+of the NEP-141 logic extraction solution itself as a separate entity.
+
+It is **worth noting** that the new contract with the NEP-141 logic is 
+available for interaction only with the Aurora contract. This means 
+that no user or third party contract can access it. At the same time, 
+the end user and third-party contracts will not notice any changes when 
+interacting with the Aurora contract. In a practical sense, this means 
+that no edits or changes need to be made to the interaction with the 
+Aurora contract. The interaction interface remains the same.
+
 ## Specification
 
 ## Rationale
 
 ## Backwards Compatibility
+
+When splitting the contract and transferring the NEP-141 logic to a 
+separate contract, full backward compatibility is ensured.
+
+This implies that the end user retains the Interface (API) when 
+interacting with the Aurora contract. This means that the end user 
+will not notice any changes and is not required to make any edits or 
+changes to interact with the Aurora contract.
 
 ## Test Cases
 
