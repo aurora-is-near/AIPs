@@ -109,6 +109,55 @@ use of `std` as well as `near-sdk`.
 
 ## Security Considerations
 
+One of the reasons for the emergence of AIP is security issues. 
+A number of vulnerabilities that were previously discovered separate 
+the NEP-141 logic into a separate contract. Especially concentrating 
+potential security problems.
+
+Pitfalls to watch out for:
+
+* new contract codebase - the current codebase that has been polished 
+for 1.5 years is stable and tested. The new contract code includes the 
+risks of finding bugs or vulnerabilities
+
+* data validation - all data related to the NEP-141 logic must be 
+migrated to the new contract. The procedure itself is quite simple. 
+However, an important aspect is that this is ultra-sensitive data that 
+requires special attention, caution, action and guarantees of results.
+
+Nevertheless, taking into account all of the above, the new contract is 
+supposed to have the properties of greater security and stability.
+
+One of the important aspects of security is that the new contract will 
+not be available for interaction to other contracts or users, except 
+for the Aurora contract. From the point of view of the external 
+interface of interaction with the Aurora contract, nothing will change.
+
+### Gas cost
+
+One of the side effects of moving the NEP-141 logic into a separate 
+contract could be an increase in the cost of Gas. This is due to 
+cross-contract calls, as well as using the `near-sdk` implementation. 
+Previously, the `no-std` implementation was used, taking into account 
+the reduced gas cost. However, these costs are expected to be 
+negligible compared to the benefits.
+
+### Execution time
+
+[TODO: need verification] Potentially there is a risk that, due to the 
+specifics of the cross-contract call, the recipe may fall into the 
+next block, which will increase the overall execution of the request. 
+In turn, this can lead to security issues that were previously not 
+specific to the logic of interaction with NEP-141.
+
+### Will changes to existing Aurora ecosystem contracts be required?
+
+It is assumed that no changes in the contracts of the Aurora ecosystem, 
+including those related to the logic of the Fungible Token, will be 
+required. The reason is that the external interface for interacting 
+with the Aurora contract will not change, and the new contract NEP-141 
+is isolated and available for interaction only with the Aurora contract.
+
 ## Copyright
 
 Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
