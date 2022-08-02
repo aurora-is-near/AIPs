@@ -1,5 +1,5 @@
 ---
-aip: 3
+aip: 5
 title: Split NEP-141 logic outside of Engine
 description: Split NEP-141 logic outside of Engine as separate independent smart contract.
 author: Evgeny Ukhanov (@mrLSD)
@@ -69,6 +69,39 @@ Aurora contract. The interaction interface remains the same.
 
 ## Specification
 
+* [NEP-141 Fungible Tokens specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
+
+* [Reference implementation](https://github.com/near/near-sdk-rs/tree/master/near-contract-standards/src/fungible_token)
+
+**Aurora contract** has advanced functionality. This includes functions:
+
+* `ft_transfer`
+* `ft_transfer_call`
+* `ft_total_supply`
+* `ft_total_eth_supply_on_aurora`
+* `ft_total_eth_supply_on_near`
+* `ft_balance_of`
+* `ft_balance_of_eth`
+* `ft_resolve_transfer`
+* `storage_deposit`
+* `storage_withdraw`
+* `storage_unregister`
+* `storage_balance_bounds`
+* `storage_balance_of`
+* `finish_deposit`
+* `deposit`
+* `withdraw`
+* `set_eth_connector_contract_data`
+* `new_eth_connector`
+* `is_used_proof`
+* `get_paused_flags`
+* `set_paused_flags`
+* `get_accounts_counter`
+
+### Significant changes
+
+### Data migration
+
 ## Rationale
 
 The main design goal is to simplify the logic of the NEP-141, compared 
@@ -100,8 +133,9 @@ the same.
 ## Reference Implementation
 
 The NEAR template will be used as a reference implementation
-for NEP-141. 
-TODO: Link to template
+for NEP-141.
+
+[NEP-141 Specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
 
 It is important to note that the current implementation of Aurora uses 
 a no-std implementation. The use of an existing template implies the 
@@ -126,7 +160,7 @@ However, an important aspect is that this is ultra-sensitive data that
 requires special attention, caution, action and guarantees of results.
 
 Nevertheless, taking into account all of the above, the new contract is 
-supposed to have the properties of greater security and stability.
+have the properties of greater security and stability.
 
 One of the important aspects of security is that the new contract will 
 not be available for interaction to other contracts or users, except 
