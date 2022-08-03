@@ -71,9 +71,10 @@ Aurora contract. The interaction interface remains the same.
 
 * [NEP-141 Fungible Tokens specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
 
-* [Reference implementation](https://github.com/near/near-sdk-rs/tree/master/near-contract-standards/src/fungible_token)
+* [NEP-141 Fungible Tokens Reference implementation](https://github.com/near/near-sdk-rs/tree/master/near-contract-standards/src/fungible_token)
 
-**Aurora contract** has advanced functionality. This includes functions:
+**Aurora contract** has advanced functionality compared to the reference implementation. 
+This includes functions:
 
 * `ft_transfer`
 * `ft_transfer_call`
@@ -99,6 +100,20 @@ Aurora contract. The interaction interface remains the same.
 * `get_accounts_counter`
 
 ### Significant changes
+
+Aurora contract was originally implemented via a `no-std` approach, 
+without using the `near-sdk` library. When making the NEP-141 logic 
+into a separate contract, the existing NEP-141 template will be used, 
+which is based on the library 
+(near-sdk)[https://crates.io/crates/near-sdk]. The main goal is 
+unification with the existing approaches for the implementation of 
+Fungible Tokens of NEAR smart contracts.
+
+Of the notable changes is the data access and recording model. Previously,
+ this was done explicitly, reading and writing data through the host 
+ functions of the virtual machine. When using near-sdk, parameters are 
+ passed through function variables, and the library also takes care of 
+ writing data. In most cases, this greatly simplifies development.
 
 ### Data migration
 
