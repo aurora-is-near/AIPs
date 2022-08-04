@@ -99,6 +99,10 @@ This includes functions:
 * `set_paused_flags`
 * `get_accounts_counter`
 
+These functions should be moved to the new contract, and rewritten using the library 
+(near-sdk)[[https://crates.io/crates/near-sdk]]. In Aurora Contract, 
+these functions must cross-contract call to the new contract.
+
 ### Significant changes
 
 Aurora contract was originally implemented via a `no-std` approach, 
@@ -110,12 +114,53 @@ unification with the existing approaches for the implementation of
 Fungible Tokens of NEAR smart contracts.
 
 Of the notable changes is the data access and recording model. Previously,
- this was done explicitly, reading and writing data through the host 
- functions of the virtual machine. When using near-sdk, parameters are 
- passed through function variables, and the library also takes care of 
- writing data. In most cases, this greatly simplifies development.
+this was done explicitly, reading and writing data through the host 
+functions of the virtual machine. When using near-sdk, parameters are 
+passed through function variables, and the library also takes care of 
+writing data. In most cases, this greatly simplifies development.
+
+All the functionality of NEP-141 must moved to new contract, namely:
+* `connector` (EthConnectorContract, EthConnector) 
+* `fungible_token` (FungibleTokenOps)
+* `deposit_event`
+* `log_entry`
+* `proof`
+
+Any reading or writing of data and use of functions that relate to 
+NEP-141 within the entire Aurora Contract must be rewritten to 
+cross-contract calls to the new contract.
+
+As said previously it will certainly has 1 block time added to NEP-141 
+interaction, but we must mitigate this by enabling contract access 
+to certain methods for this contract through function `promise_batch_action_add_key_with_function_call`
 
 ### Data migration
+
+Data migration is carried out in several stages:
+
+1. In the Aurora Contract, must be the implementation of the `migrate-nep-141` 
+function - which puts the entire functionality of the Aurora Contract 
+into read-only mode, then transfers all data related to NEP-141 through 
+a cross-contract call. After the successful completion of the operation, 
+a flag about the successful recording is written. This operation cannot 
+be repeated. The call can only be made by the admin.
+
+2. In the new contract Aurora NEP-141 - the function must be implemented: 
+`on_migrate` accepting NEP-141 data. If successful, a flag is written 
+indicating that the migration has been completed. You cannot 
+re-migrate.
+
+3. After testing a successful data transfer - the NEP-141 data must 
+deleted and the read-only mode must be disabled,
+
+We must also make sure:
+
+* that all NEP-141 data has been transferred
+
+* the inability to write and read NEP-14 data simultaneously with the
+Aurora Contract and with the new Aurora NEP-141 contract
+
+* in order to avoid critical errors and data loss - must be data backup
 
 ## Rationale
 
