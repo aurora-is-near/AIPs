@@ -12,9 +12,9 @@ created: 2022-07-14
 
 ## Abstract
 
-At the moment, the NEP-141 logic is one of the main parts of the Aurora 
+Currently, the NEP-141 logic is one of the main parts of the Aurora 
 contract. NEP-141 - implements the fungible token logic, which is the 
-link between the Ethereum and NEAR ecosystem tokens.
+link between the NEAR NEP-141 tokens and Aurora ERC-20 compatible tokens.
 
 Due to the specifics of the original goals of the Aurora contract, 
 the logic of NEP-141 has become an integral part of the core contract itself.
@@ -29,14 +29,15 @@ In the most general form, these include:
 
 * more flexible changes (this will not require updating the entire aurora contract)
 
-The result of the split should be a separate contract that the Aurora 
+The result of the split will be a separate contract that the Aurora 
 contract interacts with through cross-contract calls.
 
 ## Motivation
 
 One of the features of NEAR contracts is the interaction between 
 contracts. Due to this approach, it is possible to create an entire 
-ecosystem in which many users and developers are involved.
+NEAR ecosystem. One of the important features is the ability to use 
+third-party contracts through cross-contract calls.
 
 Putting the logic of NEP-141 into a separate contract solves important 
 tasks, the cornerstone of which is the interaction between contracts:
@@ -56,8 +57,7 @@ separate contract, including through isolating the code base, the
 process of developing and deploying the contract, solves an important 
 security problem: faster detection and quick response to 
 security-related issues. And this is not only about flexibility, but 
-also about reliability and stability. This increases the business value 
-of the NEP-141 logic extraction solution itself as a separate entity.
+also about reliability and stability.
 
 It is **worth noting** that the new contract with the NEP-141 logic is 
 available for interaction only with the Aurora contract. This means 
@@ -103,7 +103,7 @@ This includes functions:
 
 Aurora contract was originally implemented via a `no-std` approach, 
 without using the `near-sdk` library. When making the NEP-141 logic 
-into a separate contract, the existing NEP-141 template will be used, 
+into a separate contract, the existing NEP-141 template must used, 
 which is based on the library 
 (near-sdk)[https://crates.io/crates/near-sdk]. The main goal is 
 unification with the existing approaches for the implementation of 
@@ -130,14 +130,14 @@ the contract code with a wide range of stakeholders.
 When splitting the contract and transferring the NEP-141 logic to a 
 separate contract, full backward compatibility is ensured.
 
-This implies that the end user retains the Interface (API) when 
-interacting with the Aurora contract. This means that the end user 
+This splitting of logic implies that the end user retains the Interface 
+(API) when interacting with the Aurora contract. The end user 
 will not notice any changes and is not required to make any edits or 
 changes to interact with the Aurora contract.
 
 ## Test Cases
 
-The current unit tests for the NEP-141 logic will be transferred to 
+The current unit tests for the NEP-141 logic must transferred to 
 the new contract. They will also be revised and reworked under the 
 terms of an independent contract.
 
@@ -147,7 +147,7 @@ the same.
 
 ## Reference Implementation
 
-The NEAR template will be used as a reference implementation
+The NEAR template must used as a reference implementation
 for NEP-141.
 
 [NEP-141 Specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
@@ -193,17 +193,16 @@ negligible compared to the benefits.
 
 ### Execution time
 
-[TODO: need verification] Potentially there is a risk that, due to the 
-specifics of the cross-contract call, the recipe may fall into the 
-next block, which will increase the overall execution of the request. 
-In turn, this can lead to security issues that were previously not 
+Due to the specifics of the cross-contract call, the recipe fall into the 
+next block, which increase the overall execution of the request to one block. 
+In turn, potentially this can lead to security issues that were previously not 
 specific to the logic of interaction with NEP-141.
 
 ### Will changes to existing Aurora ecosystem contracts be required?
 
-It is assumed that no changes in the contracts of the Aurora ecosystem, 
-including those related to the logic of the Fungible Token, will be 
-required. The reason is that the external interface for interacting 
+No changes are needed in the contracts of the Aurora ecosystem, 
+including those related to the logic of the Fungible Token.
+The reason is that the external interface for interacting 
 with the Aurora contract will not change, and the new contract NEP-141 
 is isolated and available for interaction only with the Aurora contract.
 
