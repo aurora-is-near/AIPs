@@ -99,9 +99,9 @@ This includes functions:
 * `set_paused_flags`
 * `get_accounts_counter`
 
-These functions should be moved to the new contract, and rewritten using the library 
-(near-sdk)[[https://crates.io/crates/near-sdk]]. In Aurora Contract, 
-these functions must cross-contract call to the new contract.
+These functions must be implemented in the new contract, and rewritten using the library 
+(near-sdk)[https://crates.io/crates/near-sdk]. In Aurora Contract, 
+these functions must cross-contract call to the new Aurora NEP-141 contract.
 
 ### Significant changes
 
@@ -114,8 +114,8 @@ unification with the existing approaches for the implementation of
 Fungible Tokens of NEAR smart contracts.
 
 Of the notable changes is the data access and recording model. Previously,
-this was done explicitly, reading and writing data through the host 
-functions of the virtual machine. When using near-sdk, parameters are 
+this was done explicitly, reading and writing data directly through the host 
+functions of the virtual machine. When using `near-sdk`, parameters are 
 passed through function variables, and the library also takes care of 
 writing data. In most cases, this greatly simplifies development.
 
@@ -141,14 +141,15 @@ Data migration is carried out in several stages:
 1. In the Aurora Contract, must be the implementation of the `migrate-nep-141` 
 function - which puts the entire functionality of the Aurora Contract 
 into read-only mode, then transfers all data related to NEP-141 through 
-a cross-contract call. After the successful completion of the operation, 
-a flag about the successful recording is written. This operation cannot 
-be repeated. The call can only be made by the admin.
+a cross-contract call to new Aurora NEP-141 contract. After the successful 
+completion of the operation, a flag about the successful recording is 
+written. This operation cannot be repeated. The call can only be made by 
+the admin.
 
 2. In the new contract Aurora NEP-141 - the function must be implemented: 
-`on_migrate` accepting NEP-141 data. If successful, a flag is written 
-indicating that the migration has been completed. You cannot 
-re-migrate.
+`on_migrate` accepting NEP-141 data. If data moved successful, a flag must written 
+indicating that the migration has been completed. It is impossible to  
+re-migrate. The funcion `on_migrate` may receive request only from Aurora contract.
 
 3. After testing a successful data transfer - the NEP-141 data must 
 deleted and the read-only mode must be disabled,
