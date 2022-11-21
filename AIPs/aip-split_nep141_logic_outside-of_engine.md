@@ -138,20 +138,12 @@ to certain methods for this contract through function `promise_batch_action_add_
 
 Data migration is carried out in several stages:
 
-1. In the Aurora Contract, must be the implementation of the `migrate-nep-141` 
-function - which puts the entire functionality of the Aurora Contract 
-into read-only mode, then transfers all data related to NEP-141 through 
-a cross-contract call to new Aurora NEP-141 contract. After the successful 
-completion of the operation, a flag about the successful recording is 
-written. This operation cannot be repeated. The call can only be made by 
-the admin.
-
-2. In the new contract Aurora NEP-141 - the function must be implemented: 
-`on_migrate` accepting NEP-141 data. If data moved successful, a flag must written 
-indicating that the migration has been completed. It is impossible to  
-re-migrate. The funcion `on_migrate` may receive request only from Aurora contract.
-
-3. After testing a successful data transfer - the NEP-141 data must 
+1. Before migration, we need to get a snapshot of the contract state for the current block at the time the migration began.
+2. A special tool must be developed that receives NEP-141 data from the snapshot, and starts the process of migrating (writing) data to a new contract.
+3. Starting from the block for which the snapshot was taken, it starts the indexer - which collects data on the current state of the contract.
+4. After a successful migration of data from the snapshot, the contract and the bridge are paused, and the second stage of migration is started - received from the indexer.
+5. Checking the integrity and correctness of data after migration.
+6. After testing a successful data transfer - the NEP-141 data must 
 deleted and the read-only mode must be disabled,
 
 We must also make sure:
