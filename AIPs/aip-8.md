@@ -18,7 +18,7 @@ Blocks generated in Aurora network are virtual blocks compatible to Ethereum tha
 
 As of today, Aurora blocks are populated with a “virtual” hash that has nothing to do with the contents of the block (transactions or state changes). The reason for this is because of coupling with the EVM opcode that can get block hash from height and the fact that we do not want to keep a history of blocks in the Engine contract itself.
 
-Even if we cannot change the “official” blockhash of the Aurora blocks, we can still introduce an additional field that allows cryptographic verification that the data is not tampered with. To avoid confusion with the exiting blockhash field, we will call this new field the “block hashchain".
+Even if we cannot change the “official” blockhash of the Aurora blocks, we can still introduce an additional field that allows cryptographic verification that the data is not tampered with. To avoid confusion with the existing blockhash field, we will call this new field the “block hashchain".
 
 The goal of the block hashchain is to enable someone running a non-archival NEAR node to verify Aurora data is not tampered with, while minimizing the on-chain overhead.
 
@@ -37,7 +37,7 @@ We will compute the hashchain for the block at height `H - 1` off-chain using th
 All calls to mutable functions in the Aurora Engine (i.e. the same functions that the Refiner includes in Aurora blocks) will contribute to a “transactions hash” in the following way:
 
 - the “intrinsic transaction hash” will be `hash(hash(method_name) || hash(input_bytes) || hash(output_bytes))`, where `||` means bytes-concatenation;
-- the “transactions hash” will be updated as `txs_hash = hash(txs_hash || intrinsic_tx_hash)`, where the initial value of txs_hash is `0x00` if there have not yet been any transactions in this block.
+- the “transactions hash” will be updated as `txs_hash = hash(txs_hash || intrinsic_tx_hash)`, where the initial value of `txs_hash` is `0x00` if there have not yet been any transactions in this block.
 
 When there is a change in block height (the Engine will know this has happened by keeping the last seen height in its state), it will compute the overall block hashchain for the previous block as follows:
 
@@ -55,7 +55,7 @@ The standard `keccak256` hashing function will be used for all the hashes.
 
 ### Skip blocks
 
-It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way we want to have an Aurora block hashchain for every height (because the refiner produces blocks at all heights). So if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
+It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
 
 ```
 block_hashchain_H_prime          = hash(block_hashchain_H_prime_minus_one || hash((H').to_le_bytes()) || txs_hash_H_prime)
@@ -71,16 +71,16 @@ Depending on the viability of computing the EVM logs bloom filter in the engine 
 
 ### Cryptographic Verification
 
-The engine state will always contain the genesis hashchain as well as the hashchain of the last completed block. To verify a given Aurora stream is correct using a non-archival NEAR node do the following:
+The engine state will always contain the genesis block hashchain as well as the block hashchain of the last completed block. To verify a given Aurora stream is correct using a non-archival NEAR node do the following:
 
 1. Check the genesis hashchain in the Engine (obtained via a view call to the NEAR node) matches the hashchain in block `G`.
 2. Using the data in the stream, follow the scheme above to compute the hashchain for the block at some recent height and check that hashchain matches the value in the Engine state (obtained via a view call again).
 
-If the two values matches, then the data must match what happened on-chain. This is called “range verification” because it verifies a whole range of blocks by checking only the endpoint hashchains. The reason this works is because the hashchain includes all the transaction data and block heights in between, thus any change to the local copy of the data would produce an incorrect final hash.
+If the two values matches, then the data must match what happened on-chain. This is called “range verification” because it verifies a whole range of blocks by checking only the endpoint hashchains. The reason this works is because the hashchain includes all the transaction data and block heights in between, thus any change to the local copy of the data should produce an incorrect final hash.
 
 ## Rationale
 
-The current design aims to compute the bock hashchain while minimizing the on-chain overhead.
+The current design aims to compute the block hashchain while minimizing the on-chain overhead.
 
 Every time that a new transaction is received on the Engine, the intrinsic transaction hash and the transactions hash will be computed. Both computations should be fast since they only depend on a single transaction. When there is a change in block height, the overall block hashchain will be computed, but this only depends on already know values: previous block hashchain, block height and transactions hash. With this approach we are effectively distributing the block hashchain computation between every transaction that Engine receives.
 
