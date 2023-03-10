@@ -69,7 +69,7 @@ The memory utilized by the Stream Compact Merkle Tree structure is just a list (
 
 ```[{height: 7, hash: h1}, {height: 4, hash: h2}, {height: 3, hash: h1}]```
 
-where `h1`, `h2`, and `h3` are the respective binary Merkle Trees root hashes node, of the first `128` hashes, the next `16` hashes, and the next `8` hashes, that consitute the `152` hashes.
+where `h1`, `h2`, and `h3` are the respective binary Merkle Trees roots hashes nodes, of the first `128` hashes, the next `16` hashes, and the next `8` hashes, that consitute the `152` hashes.
 
 Adding a particular hash leaf node to the structure could take `O(log n)`, but the amortized complexity for the `n` hashes is `O(1)` because of the internal compaction of full binary subtrees on the list.
 
