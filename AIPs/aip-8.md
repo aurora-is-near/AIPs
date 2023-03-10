@@ -12,7 +12,7 @@ created: 2023-02-07
 
 ## Abstract
 
-Blocks generated in Aurora network are virtual blocks compatible to Ethereum that are derived from NEAR blocks. This API is a formal specification for a new Aurora block field: `block_hashchain`. Block hashchain is in the form of a hash, constructed from Aurora chain id, contract account id, block height, previous block hashchain and block transactions, and it will serve for Aurora blockchain cryptographic verification.
+Blocks generated in Aurora network are virtual blocks compatible with Ethereum that are derived from NEAR blocks. This API is a formal specification for a new Aurora block field: `block_hashchain`. Block hashchain is in the form of a hash, constructed from Aurora chain id, contract account id, block height, previous block hashchain, and block transactions, and it will serve for Aurora blockchain cryptographic verification.
 
 ## Motivation
 
@@ -20,7 +20,7 @@ As of today, Aurora blocks are populated with a “virtual” hash that has noth
 
 Even if we cannot change the “official” blockhash of the Aurora blocks, we can still introduce an additional field that allows cryptographic verification that the data is not tampered with. To avoid confusion with the existing blockhash field, we will call this new field the “block hashchain".
 
-The goal of the block hashchain is to enable someone running a non-archival NEAR node to verify Aurora data is not tampered with, while minimizing the on-chain overhead.
+The goal of the block hashchain is to enable someone running a non-archival NEAR node to verify Aurora data is not tampered with while minimizing the on-chain overhead.
 
 ## Specification
 
@@ -34,16 +34,16 @@ We will compute the hashchain for the block at height `H - 1` off-chain using th
 
 ### Computation
 
-All calls to mutable functions in the Aurora Engine (i.e. the same functions that the Refiner includes in Aurora blocks) will contribute to the “transactions hash” of the block, that is computed using a binary Merkle Tree as follows:
+All calls to mutable functions in the Aurora Engine (i.e., the same functions that the Refiner includes in Aurora blocks) will contribute to the “transactions hash” of the block, which is computed using a binary Merkle Tree as follows:
 
 - the “intrinsic transaction hash”, `tx_hash`, of a transaction will be `hash(hash(method_name) || hash(input_bytes) || hash(output_bytes))`, where `||` means bytes-concatenation;
-- the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found latter. In case there are no transactions on the block, the value will be `0x00`.
+- the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found later. In case there are no transactions on the block, the value will be `0x00`.
 
 When there is a change in block height (the Engine will know this has happened by keeping the last seen height in its state), it will compute the overall block hashchain for the previous block as follows:
 
 ```block_hashchain = hash(hash(chain_id) || hash(contract_account_id) || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
 
-As the chain id and contract account id are the same for an instance of the Aurora contract, let us use `chain_id_hash` and `contract_account_id_hash` to express their one time computed hashes. The block hashchain computation will be then:
+As the chain id and contract account id are the same for an instance of the Aurora contract, let us use `chain_id_hash` and `contract_account_id_hash` to reference their one-time computed hashes. The block hashchain computation will be then:
 
 ```block_hashchain = hash(chain_id_hash || contract_account_id_hash || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
 
@@ -59,25 +59,25 @@ The standard `keccak256` hashing function will be used for all the hashes.
 
 #### Merkle Tree
 
-A binary Merkle Tree is constructed bottom up combaning couples of hash nodes from the current level to conform the next level. Combaining a couple of hash nodes consits on creating a parent hash node, which hash is the hash of the concatenation of the hashes of its childs. The starting point in this case is an inital list hash leaf nodes, and the procedure continues combining level by level until there is only one hash node, the hash root node. If at a level, the final hash node does not have a pair hash node to be combined with, then the final hash node is combined with itself to produce the hash parent node.
+A binary Merkle Tree is constructed bottom-up combining couples of hash nodes from the current level to construct the next level. Combining a couple of hash nodes consist of creating a parent hash node, which hash is the hash of the concatenation of the hashes of its children. The starting point in this case is an initial list of hash leaf nodes, and the procedure continues combining level by level until there is only one hash node, the hash root node. If at a level, the final hash node does not have a pair hash node to be combined with, then the final hash node is combined with itself to produce the hash parent node.
 
-We wanted to aviod this approunch since the Engine will need to record all the executed block transactions hashes until there is a change on block height. We created instead what we call a Stream Compact Merkle Tree.
+We wanted to avoid this approach since the Engine will need to record all the block's transactions hashes until there is a change in block height. We created instead what we call a Stream Compact Merkle Tree to minimize memory usage while maintaining a good performance.
 
-The Stream Compact Merkle Tree structure receives the hash leaf nodes dinamycally from a stream, and stores only full compact Merkle binary subtrees records, called Compact Merkle Subtrees, to minimize memory utilization. Every Compact Merkle Subtree record holds only two fields: height and hash. For the subtree that it represents, the height field is the height of the subtree and the hash is the hash root node computed for the subtree.
+The Stream Compact Merkle Tree structure receives the hash leaf nodes dynamically from a stream, and stores only records of full compact Merkle binary subtrees, called Compact Merkle Subtrees. Every Compact Merkle Subtree record holds only two fields: height and hash. For the subtree that it represents, the height field is the height of the subtree, and the hash is the computed hash root node of the subtree.
 
-The memory utilized by the Stream Compact Merkle Tree structure is just list (or stack) of Compact Merkle Subtree records. For `n` hash leaf nodes, the structure only holds in the list one record per every `1` in the binary representation of `n`. Thus, the space complexity is bounded by `O(log n)`. For example, for `152` hash leaf nodes added, the binary representation of `152` is `10011000`, and this means that we only store three Compact Merkle Subtree records on the list:
+The memory utilized by the Stream Compact Merkle Tree structure is just a list (stack) of Compact Merkle Subtree records. For `n` hash leaf nodes, the structure only holds in the list one record per every `1` in the binary representation of `n`. Thus, the space complexity is bounded by `O(log n)`. For example, for `152` hash leaf nodes, the binary representation of `152` is `10011000`, and this means that we only store three Compact Merkle Subtree records on the list:
 
 ```[{height: 7, hash: h1}, {height: 4, hash: h2}, {height: 3, hash: h1}]```
 
-where `h1`, `h2` and `h3` are the respective binary Merkle Trees root node hashes, of the first `128` hashes, next `16` hashes, and next `8` hashes, that conform the `152` hashes.
+where `h1`, `h2`, and `h3` are the respective binary Merkle Trees root hashes node, of the first `128` hashes, the next `16` hashes, and the next `8` hashes, that consitute the `152` hashes.
 
-Adding a particular leaf hash node to the structure could take `O(log n)`, but the amortized order for the `n` hashes is `O(1)` because of the interal compactation of full binary subtrees on the list.
+Adding a particular hash leaf node to the structure could take `O(log n)`, but the amortized complexity for the `n` hashes is `O(1)` because of the internal compaction of full binary subtrees on the list.
 
-To get the global root hash of the structure, i.e the `txs_hash` of a block when there is a change on block height, we use a computation procedure to combine the subtrees on the list that takes `O(log n)`. The standard self combination occurs for hash nodes that does not have a pair hash node.
+To get the global root hash of the structure, i.e. the `txs_hash` of a block when there is a change in block height, we use a computation procedure to combine the subtrees on the list that takes `O(log n)`. The standard self-combination occurs for hash nodes that do not have a pair hash node.
 
 ### Skip Blocks
 
-It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
+It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way, we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So, if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
 
 ```
 block_hashchain_H_prime          = hash(chain_id_hash || contract_account_id_hash || hash((H').to_be_bytes()) || block_hashchain_H_prime_minus_one || txs_hash_H_prime)
@@ -100,34 +100,34 @@ The engine state will always contain the genesis block hashchain as well as the 
 1. Check the genesis hashchain in the Engine (obtained via a view call to the NEAR node) matches the hashchain in block `G`.
 2. Using the data in the stream, follow the scheme above to compute the hashchain for the block at some recent height and check that hashchain matches the value in the Engine state (obtained via a view call again).
 
-If the two values matches, then the data must match what happened on-chain. This is called “range verification” because it verifies a whole range of blocks by checking only the endpoint hashchains. The reason this works is because the hashchain includes all the transaction data and block heights in between, thus any change to the local copy of the data should produce an incorrect final hash.
+If the two values match, then the data must match what happened on-chain. This is called “range verification” because it verifies a whole range of blocks by checking only the endpoint hashchains. The reason this works is that the hashchain includes all the transaction data and block heights in between, thus any change to the local copy of the data should produce an incorrect final hash.
 
 #### Transaction Verification
 
-To verify that a transaction belongs to a block, we can rely on the binary Merkle Tree to use Merkle Proofs. Light clients (verifiers) only need to held blocks headers to have all the block hash information, and requiere a Merkle Proof to verify a transaction.
+To verify that a transaction belongs to a block, we can rely on the binary Merkle Tree to use Merkle Proofs. Light clients (verifiers) only need to hold block's headers to have all the block hash information, and require a Merkle Proof to verify a transaction.
 
-Givin a transaction in a block, the corresponding Merkle Proof from the corresponding Merkle Tree, consists of the sequence of sibling hash nodes, of the branch hash nodes that join the transaction hash leaf node with the root hash node. This sequence allows the recreation of the computation of the root hash, computing the joining branch bottom up iterately, using at each step the computed branch node from the previous step and its provided sibiling on the proof.
+Given a transaction in a block, the corresponding Merkle Proof from the corresponding Merkle Tree consists of the sequence of sibling hash nodes, of the branch hash nodes that join the transaction hash leaf node with the root hash node. This sequence allows the recreation of the computation of the root hash, computing the joining branch bottom up literately, using at each step the computed branch node from the previous step and its provided sibling on the proof.
 
-If by the end of the process the verifier ends up with a computed `txs_hash` (root hash) that corresponds to the one of the block, then the transaction should belong to the block. To check if the computed `txs_hash` corresponds to the one of the block, the verifier just needs to compute the block hashchain using the info in the block header and the computed `txs_hash`, and compare it with block haschain on the header.
+If by the end of the process, the verifier ends up with a computed `txs_hash` (root hash) that corresponds to the one of the block, then the transaction should belong to the block. To check if the computed `txs_hash` corresponds to the one of the block, the verifier just needs to compute the block hashchain using the info in the block header and the computed `txs_hash`, and compare it with the block hashchain on the header.
 
-The size of the sibilings hash nodes sequence is then the height of the tree. As this is binary balanced tree then for `n` transactions the sequence size is `O(log n)`. Given the transaction and the proof, the verification processs is then `O(log n)`.
+The size of the siblings hash nodes sequence is then the height of the tree. As this is a binary balanced tree then for `n` transactions the sequence size is `O(log n)`. Given the transaction and the proof, the verification process is then `O(log n)`.
 
 ## Rationale
 
-The current design aims to compute the block hashchain, facilitate a fast transaction proof verification, while minimizing the on-chain overhead.
+The current design aims to compute the block hashchain, and facilitate a fast transaction proof verification, while minimizing the on-chain overhead.
 
 Every time that a new transaction is received on the Engine, the intrinsic transaction hash will be computed and added to the Stream Compact Merkle Tree (tree). Both procedures are fast since they involve a single transaction hash, and the amortized `O(1)` tree addition. When there is a change in block height, the block hashchain will be computed from:
-A. already know values: chain id hash, contract account id hash and previous block hashchain.
+A. already know values: chain id hash, contract account id hash, and previous block hashchain.
 B. computation of the hash of the block height.
 C. computation of the tree hash, that takes `O(log n)` for `n` transactions on the block.
 
-The space needed as explained in the Merkle Tree section `O(log n)`. With this approach we are distributing the block transactions hash computation between the `n` transactions with an amortized `O(1)` procedure time, plus a final `O(log n)` procedure at block height change. As explained before, because of the use of a binary Merkle Tree, the transaction proof verification procedure is also `O(log n)`.
+The space needed, as explained in the Merkle Tree section, is `O(log n)`. With this approach, we are distributing the block transactions hash computation between the `n` transactions with an amortized `O(1)` procedure time, plus a final `O(log n)` procedure at block height change. As explained before, because of the use of a binary Merkle Tree, the transaction proof verification procedure is also `O(log n)`.
 
-Other possible approach would be to compute the transactions hash of a block using a lineal hash composition instead of a binary Merkle Tree. In this case, every transaction received will be hashed to get the intrinsic transaction hash, `tx_hash`, and the transcations hash of the block, `txs_hash`, will be updated as `txs_hash = hash(txs_hash || tx_hash)`.
+Another possible approach would be to compute the transactions hash of a block using a lineal hash composition instead of a binary Merkle Tree. In this case, every transaction received will be hashed to get the intrinsic transaction hash, `tx_hash`, and the transactions hash of the block, `txs_hash`, will be updated as `txs_hash = hash(txs_hash || tx_hash)`.
 
-This reduces the memory utilization to `O(1)` since we only need to mantein a fixed amont of hashes. The procedure per transaction will be faster since it is simpler but only by a constant factor because both are `O(1)`. The final procedure to compute the block hashchain will be faster since it will be `O(1)` given that the `txs_hash` is alredy computed. The downsize here is that the transction proof verification offered will be `O(n)` because of the linar composition to get `txs_hash`, so affecting considerably every one who needs tu run that process.
+This reduces the memory utilization to `O(1)` since we only need to maintain a fixed amount of hashes. The procedure per transaction will be faster since it is simpler but only by a constant factor because both are `O(1)`. The final procedure to compute the block hashchain will be faster since it will be `O(1)` given that the `txs_hash` is already computed. The downside here is that the transaction proof verification offered will be `O(n)` because of the linear composition to get `txs_hash`, so affecting considerably everyone who needs to run that process.
 
-Paying the price of `O(log n)` in procedure and space to offer faster `O(log n)` transction proof verification, is reasonable and puts the focus on convenient use of our products by our users.
+Paying the price of `O(log n)` in procedure and space to offer faster `O(log n)` transaction proof verification, is reasonable and focuses on the convenient use of our products by our users.
 
 Another alternative would be to compute the block hashchain as a single operation when there is a change in block height. We will need then to store all the `n` block transactions when they are received; this will increase considerably the memory usage. When the block height changes, we will need then to run the `O(n)` procedure to compute the full tree hash, plus the final block hashchain computation. This could heavily impact the on-chain performance at that point depending on the number of transactions in the block.
 
@@ -163,14 +163,14 @@ https://github.com/Casuso/aurora-engine_bechmark/tree/aurora_block_hashchain_blo
 There are two types of tests:
 
 A. block_txs
-Executing a number of transactions in the same block and measure the gas profiled on each.
+Receiving a number of transactions on the same block and measuring the gas profiled on each.
 The input is the number of transactions to insert.
 The output is an array where each position `i` is the gas profile of the transaction `i`.
 
 B. blocks_change_txs
-Executing a number of transactions on blocks and measure the gas profiled by an extra tx on each that changes the block height.
+Receiving a number of transactions on blocks and measuring the gas profiled by an extra transaction on each that changes the block height.
 The input is an array where each position `i` is the number of transactions to insert on block `i`.
-The output is an array where each position `i` is the gas profiled of the extra transaction to change height.
+The output is an array where each position `i` is the gas profiled of the extra transaction to change the height.
 
 For the A type, we did two tests:
 1. Test1 input: `255` transactions.
@@ -180,18 +180,18 @@ This covers ending in a full binary tree.
 
 For the B type, we did two tests:
 3. Test3 input: `[128 + 0, 128 + 1, 128 + 2, 128 + 4, 128 + 8, 128 + 16, 128 + 32, 128 + 64, 128 + 16 + 1, 255]`.
-This covers having the bigger and minor heights of subtrees as, 7 and 0, 7 and 1, 7 and 2, ..., 7 and 6. Also covers one three heights subtrees with 7, 4 and 1, heights. Finally it covers the full heights subtree as a result of 255 transactions.
+This covers having the bigger and minor heights of subtrees as, 7 and 0, 7 and 1, 7 and 2, ..., 7 and 6. Also covers three heights subtrees with 7, 4, and 1, heights. Finally, it covers the full heights subtree as a result of 255 transactions.
 4. Test4 input: `[129, 131, 133, 135, 137]`.
-This covers odds number of transactions, that will result in two or more subtrees, one of max height 7 (128), other of min height 1 (1), and some in between. This will force the worse hashchain computation from min height 1 to max height 7.
+This covers odds number of transactions, that will result in two or more subtrees, one of max height 7 (128), the other of min height 1 (1), and some in between. This will force the worse hashchain computation from min height 1 to max height 7.
 
-#### Test Outputs and Deltas
+#### Tests Outputs and Deltas
 
-In the file /assets/api-8/benchamark-tests you can find the test outputs per branch and the deltas. The deltas are the differences in gas consumption after substracting the base branch outputs from the hashchain branch outputs.
+In the file /assets/api-8/benchamark-tests you can find the test outputs per branch and the deltas. The deltas are the differences in gas consumption after subtracting the base branch outputs from the hashchain branch outputs.
 
 #### Statistics
 
 These are the statistics that we show per delta:
-Average (Ave), Median (Med), Minimum (Min), Maximum (Max), Average Absolute Deviation (AAD), Variance (Var) and Standard Deviation (SD).
+Average (Ave), Median (Med), Minimum (Min), Maximum (Max), Average Absolute Deviation (AAD), Variance (Var), and Standard Deviation (SD).
 
 Test1 Delta:
 Ave: 392670440812.5529
@@ -229,11 +229,11 @@ AAD: 838216515.3599854
 Var: 1676081056997748500
 SD : 1294635491.9427123
 
-#### Analisis
+#### Analysis
 
 Tests 1 and 2 are focused on executing transactions on the same block, which is the most common case as only one transaction triggers the change in block height. For these the average increase observed (delta ave) is less than 0.4  Tgas, and the maximums are less than 0.6 Tgas.
 
-Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is most extensive one. Both show an average and max increases of less than 0.6 Tgas.
+Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is the most extensive one. Both show average and max increases of less than 0.6 Tgas.
 
 An increase of 0.6 Tgas is a small amount so we should be fine. For reference, the transaction gas limit is 300 Tgas.
 
@@ -249,30 +249,30 @@ We will describe some important properties and then proceed to test the possible
 
 The "Collision resistance" property of cryptographic hashing functions, and specifically of the `keccak256` function (`hash`), establishes the difficulty to find two different inputs `x1` and `x2` such `hash(x1) = hash(x2)`. Let us call this property `P0`.
 
-We heavily rely on the security offered by the composition of a hashing functions, so offering the same security model as known blockchains, having its roots on Merkle Trees and in `P0`. We will then assume safely, that any data point change in a chain or tree of compositions of a hash function, will result on a “different” output. Let us call this property `P1`.
+We heavily rely on the security offered by the composition of hashing functions, so offering the same security model as known blockchains, having its roots on Merkle Trees and in `P0`. We will then assume safely, that any data point change in a chain or tree of compositions of a hash function, will result in a “different” output. Let us call this property `P1`.
 
-Every parameter on the transactions hash computation and on the final block hashchain computation, is the result of hash operation. This ensures that the bytes-concatenation `||` operations that are applied to the parameters on both computations are injective, since the parameters have the same fixed size. This is important so a bad actor cannot shift bytes from one parameter to the next one to create another input with the same resulting concatenation. Let us call this property `P2`.
+Every parameter on the transactions hash computation and on the final block hashchain computation is the result of a hash operation. This ensures that the bytes-concatenation `||` operations that are applied to the parameters on both computations are injective since the parameters have the same fixed size. This is important so a bad actor cannot shift bytes from one parameter to the next one to create another input with the same resulting concatenation. Let us call this property `P2`.
 
-### Break attempts
+### Break Attempts
 
-Without losing generality, lets assume that a bad actor attempts to change at least the `input` value of a transaction `t_x` in a block `B`. Below are the original `_1` and new `_2` computations of the intrinsic transaction hash of `t_x`.
+Without losing generality, let’s assume that a bad actor attempts to change at least the `input` value of a transaction `t_x` in a block `B`. Below are the original `_1` and new `_2` computations of the intrinsic transaction hash of `t_x`.
 
 ```
 intrinsic_tx_hash_1 = hash(hash(method_name) || hash(input_bytes_1) || hash(output_bytes))
 intrinsic_tx_hash_2 = hash(hash(method_name) || hash(input_bytes_2) || hash(output_bytes))
 ```
 
-Since at least the `input` it’s different, then its respective hash value should be "different" by `P0`. By `P2`, we can then claim that the general hash functions inputs would be different after the bytes-concatenation. Then again, by `P0` the resulting intrinsic intrinsic transaction hash output should be "different", so `tx_hash_1 != tx_hash_2`.
+Since at least the `input` it’s different, then its respective hash value should be "different" by `P0`. By `P2`, we can then claim that the general hash functions inputs would be different after the bytes-concatenation. Then again, by `P0` the resulting intrinsic transaction hash output should be "different", so `tx_hash_1 != tx_hash_2`.
 
-This different intrinsic transaction hash `tx_hash_2` of `t_x` will cause a difference in the transactions hash of `B`, by `P1`, since its computation is a compositions of hash functions that includes the intrinsic transaction hash of `t_x`. So, instead of having transactions hash `txs_hash_1` for `B`, we would have `txs_hash_2`.
+This different intrinsic transaction hash `tx_hash_2` of `t_x` will cause a difference in the transactions hash of `B`, by `P1`, since its computation is a composition of hash functions that includes the intrinsic transaction hash of `t_x`. So, instead of having transactions hash `txs_hash_1` for `B`, we would have `txs_hash_2`.
 
-In another case, let’s assume that the attempt is to add a transaction to `B`. Then, there will be also a change in the compositions of the hashing functions for the computation of the transactions hash, thus resulting in a "different" value because of `P1`. Similar would happen in case of removing a transaction from `B`.
+In another case, let’s assume that the attempt is to add a transaction to `B`. Then, there will be also a change in the compositions of the hashing functions for the computation of the transactions hash, thus resulting in a "different" value because of `P1`. Similar would happen in the case of removing a transaction from `B`.
 
 In summary, any change to the transactions of `B` would result in a different value `txs_hash_2` of the transactions hash. Having a different value of the transactions hash, then the block hashchain of `B` should be "different", because of `P2` and `P0`. So `block_hashchain_B_1 != block_hashchain_B_2` (probabilistically speaking), by applying properties `P2` and `P0`.
 
-It worth also to mention that any attempts to tamper with the block height or to use a different previous block hashchain, would result also in a "different" block hashchain value for `B`, because of `P2` and `P0` too.
+It is worth also mentioning that any attempts to tamper with the block height or to use a different previous block hashchain, would result also in a "different" block hashchain value for `B`, because of `P2` and `P0` too.
 
-Finally, once the block hashchain of a block in the stream has changed, then we can claim that the computed block hashchain of the last completed block of the stream would be "different" from the known one in the Engine. This is because the computation of the block hashchain is the compositions of hashing functions, so `P1` applies:
+Finally, once the block hashchain of a block in the stream has changed, then we can claim that the computed block hashchain of the last completed block of the stream would be "different" from the known one in the Engine. This is because the computation of the block hashchain is the composition of hashing functions, so `P1` applies:
 
 ```block_hashchain = hash(chain_id_hash || contract_account_id_hash || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
 
