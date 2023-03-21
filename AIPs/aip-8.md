@@ -36,24 +36,20 @@ We will compute the hashchain for the block at height `H - 1` off-chain using th
 
 All calls to mutable functions in the Aurora Engine (i.e., the same functions that the Refiner includes in Aurora blocks) will contribute to the “transactions hash” of the block, which is computed using a binary Merkle Tree as follows:
 
-- the “intrinsic transaction hash”, `tx_hash`, of a transaction will be `hash(hash(method_name) || hash(input_bytes) || hash(output_bytes))`, where `||` means bytes-concatenation;
+- the “intrinsic transaction hash”, `tx_hash`, of a transaction will be `hash(method_name.len().to_be_bytes() || method_name || input_bytes.len().to_be_bytes() || input_bytes || output_bytes.len().to_be_bytes() || output_bytes)`, where `||` means bytes-concatenation;
 - the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found later. In case there are no transactions on the block, the value will be `0x00`.
 
 When there is a change in block height (the Engine will know this has happened by keeping the last seen height in its state), it will compute the overall block hashchain for the previous block as follows:
 
-```block_hashchain = hash(hash(chain_id) || hash(contract_account_id) || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
-
-As the chain id and contract account id are the same for an instance of the Aurora contract, let us use `chain_id_hash` and `contract_account_id_hash` to reference their one-time computed hashes. The block hashchain computation will be then:
-
-```block_hashchain = hash(chain_id_hash || contract_account_id_hash || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
+```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash)```
 
 For example, the hashchain for the block at height `H` will be 
 
-```block_hashchain_H = hash(chain_id_hash || contract_account_id_hash || hash(H.to_be_bytes()) || precomputed_hashchain || txs_hash_H)```
+```block_hashchain_H = hash(chain_id || contract_account_id || H.to_be_bytes() || precomputed_hashchain || txs_hash_H)```
 
 and the hashchain for the following block will be
 
-```block_hashchain_H_plus_1 = hash(chain_id_hash || contract_account_id_hash || hash((H + 1).to_be_bytes()) || block_hashchain_H || txs_hash_H_plus_1)```
+```block_hashchain_H_plus_1 = hash(chain_id || contract_account_id || (H + 1).to_be_bytes() || block_hashchain_H || txs_hash_H_plus_1)```
 
 The standard `keccak256` hashing function will be used for all the hashes.
 
@@ -80,16 +76,16 @@ To get the global root hash of the structure, i.e. the `txs_hash` of a block whe
 It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way, we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So, if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
 
 ```
-block_hashchain_H_prime          = hash(chain_id_hash || contract_account_id_hash || hash((H').to_be_bytes()) || block_hashchain_H_prime_minus_one || txs_hash_H_prime)
-block_hashchain_H_prime_plus_one = hash(chain_id_hash || contract_account_id_hash || hash((H' + 1).to_be_bytes()) || block_hashchain_H_prime || 0x00)
-block_hashchain_H_prime_plus_two = hash(chain_id_hash || contract_account_id_hash || hash((H' + 2).to_be_bytes()) || block_hashchain_H_prime_plus_one || txs_hash_H_prime_plus_two)
+block_hashchain_H_prime          = hash(chain_id || contract_account_id || (H').to_be_bytes() || block_hashchain_H_prime_minus_one || txs_hash_H_prime)
+block_hashchain_H_prime_plus_one = hash(chain_id || contract_account_id || (H' + 1).to_be_bytes() || block_hashchain_H_prime || 0x00)
+block_hashchain_H_prime_plus_two = hash(chain_id || contract_account_id || (H' + 2).to_be_bytes() || block_hashchain_H_prime_plus_one || txs_hash_H_prime_plus_two)
 ```
 
 ### Optional extension
 
 Depending on the viability of computing the EVM logs bloom filter in the engine itself (need to figure out how much gas that would cost), then the block hashchain should include that as well.
 
-```block_hashchain = hash(chain_id_hash || contract_account_id_hash || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash || hash(logs_bloom))```
+```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash || hash(logs_bloom))```
 
 ### Cryptographic Verification
 
@@ -129,7 +125,7 @@ This reduces the memory utilization to `O(1)` since we only need to maintain a f
 
 Paying the price of `O(log n)` in procedure and space to offer faster `O(log n)` transaction proof verification, is reasonable and focuses on the convenient use of our products by our users.
 
-Another alternative would be to compute the block hashchain as a single operation when there is a change in block height. We will need then to store all the `n` block transactions when they are received; this will increase considerably the memory usage. When the block height changes, we will need then to run the `O(n)` procedure to compute the full tree hash, plus the final block hashchain computation. This could heavily impact the on-chain performance at that point depending on the number of transactions in the block.
+Another alternative would be to compute the block hashchain as a single operation when there is a change in block height. We will need then to store all the 'n' hashes of block transactions when they are received; this will increase considerably the memory usage. When the block height changes, we will need then to run the `O(n)` procedure to compute the full tree hash, plus the final block hashchain computation. This could heavily impact the on-chain performance at that point depending on the number of transactions in the block.
 
 It seems reasonable to distribute the load of the computation by transactions versus the bulk operation at the end.
 
@@ -251,30 +247,30 @@ The "Collision resistance" property of cryptographic hashing functions, and spec
 
 We heavily rely on the security offered by the composition of hashing functions, so offering the same security model as known blockchains, having its roots on Merkle Trees and in `P0`. We will then assume safely, that any data point change in a chain or tree of compositions of a hash function, will result in a “different” output. Let us call this property `P1`.
 
-Every parameter on the transactions hash computation and on the final block hashchain computation is the result of a hash operation. This ensures that the bytes-concatenation `||` operations that are applied to the parameters on both computations are injective since the parameters have the same fixed size. This is important so a bad actor cannot shift bytes from one parameter to the next one to create another input with the same resulting concatenation. Let us call this property `P2`.
+Every parameter, on the transactions hash computation and on the final block hashchain computation, is concatenated with other parameters before performing the hashing. For the transaction hash computation, we preappend the lenght of each paramater to each of them. For the final block computation, all parameters but one (contract_account_id) are fixed size parameters. These procedures and caracteristics ensures that both concatenations operations are injective. This is important so a bad actor cannot shift bytes from one parameter to the next one to create another input with the same resulting concatenation. Let us call this property `P2`.
 
 ### Break Attempts
 
 Without losing generality, let’s assume that a bad actor attempts to change at least the `input` value of a transaction `t_x` in a block `B`. Below are the original `_1` and new `_2` computations of the intrinsic transaction hash of `t_x`.
 
 ```
-intrinsic_tx_hash_1 = hash(hash(method_name) || hash(input_bytes_1) || hash(output_bytes))
-intrinsic_tx_hash_2 = hash(hash(method_name) || hash(input_bytes_2) || hash(output_bytes))
+intrinsic_tx_hash_1 = hash(method_name.len().to_be_bytes() || method_name || input_bytes_1.len().to_be_bytes() || input_bytes_1 || output_bytes.len().to_be_bytes() || output_bytes)
+intrinsic_tx_hash_2 = hash(method_name.len().to_be_bytes() || method_name || input_bytes_1.len().to_be_bytes() || input_bytes_1 || output_bytes.len().to_be_bytes() || output_bytes)
 ```
 
-Since at least the `input` it’s different, then its respective hash value should be "different" by `P0`. By `P2`, we can then claim that the general hash functions inputs would be different after the bytes-concatenation. Then again, by `P0` the resulting intrinsic transaction hash output should be "different", so `tx_hash_1 != tx_hash_2`.
+Since at least the `input` parameter is different, then the concatenation operation will have a different result by `P2`. Then the general hash functions inputs would be different, and by `P0` the resulting intrinsic transaction hash output should be "different": `tx_hash_1 != tx_hash_2`.
 
 This different intrinsic transaction hash `tx_hash_2` of `t_x` will cause a difference in the transactions hash of `B`, by `P1`, since its computation is a composition of hash functions that includes the intrinsic transaction hash of `t_x`. So, instead of having transactions hash `txs_hash_1` for `B`, we would have `txs_hash_2`.
 
 In another case, let’s assume that the attempt is to add a transaction to `B`. Then, there will be also a change in the compositions of the hashing functions for the computation of the transactions hash, thus resulting in a "different" value because of `P1`. Similar would happen in the case of removing a transaction from `B`.
 
-In summary, any change to the transactions of `B` would result in a different value `txs_hash_2` of the transactions hash. Having a different value of the transactions hash, then the block hashchain of `B` should be "different", because of `P2` and `P0`. So `block_hashchain_B_1 != block_hashchain_B_2` (probabilistically speaking), by applying properties `P2` and `P0`.
+In summary, any change to the transactions of `B`, would result in a different value `txs_hash_2` of the transactions hash. Having a different value of the transactions hash, then the block hashchain of `B` should be "different", because of `P2` and `P0`. So `block_hashchain_B_1 != block_hashchain_B_2` (probabilistically speaking), by applying properties `P2` and `P0`.
 
 It is worth also mentioning that any attempts to tamper with the block height or to use a different previous block hashchain, would result also in a "different" block hashchain value for `B`, because of `P2` and `P0` too.
 
 Finally, once the block hashchain of a block in the stream has changed, then we can claim that the computed block hashchain of the last completed block of the stream would be "different" from the known one in the Engine. This is because the computation of the block hashchain is the composition of hashing functions, so `P1` applies:
 
-```block_hashchain = hash(chain_id_hash || contract_account_id_hash || hash(block_height.to_be_bytes()) || previous_block_hashchain || txs_hash)```
+```block_hashchain = hash(chain_id_ || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash)```
 
 ## Copyright
 
