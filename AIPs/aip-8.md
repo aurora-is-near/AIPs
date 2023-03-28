@@ -39,17 +39,24 @@ All calls to mutable functions in the Aurora Engine (i.e., the same functions th
 - the “intrinsic transaction hash”, `tx_hash`, of a transaction will be `hash(method_name.len().to_be_bytes() || method_name || input_bytes.len().to_be_bytes() || input_bytes || output_bytes.len().to_be_bytes() || output_bytes)`, where `||` means bytes-concatenation;
 - the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found later. In case there are no transactions on the block, the value will be `0x00`.
 
-When there is a change in block height (the Engine will know this has happened by keeping the last seen height in its state), it will compute the overall block hashchain for the previous block as follows:
+Also, the calls to these functions that return a result including logs, will contribute to the "transactions logs bloom" filter of the block as follows:
 
-```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash)```
+- we will use bloom filters with an array of `***` bits (`usize` bits depends on the architecture) and `3` hash functions. I.e, `m = ***` and `k = 3`.
+- the "log bloom" of a log, is the result of accrue the log's address bytes and the log's topics bytes.
+- the "intrinsic transaction logs bloom", `tx_logs_bloom`, of a transaction will be the binary `OR` (`|`) of the logs bloom of the transaction's logs.
+- the "transactions logs bloom", `txs_logs_bloom`, will be the binary `OR` (`|`) of the `tx_logs_bloom` of the transactions of the block.
+
+When there is a change in block height (the Engine will know this has happened by keeping the last seen height in its state), we will compute the overall block hashchain for the previous block as follows:
+
+```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash || txs_logs_bloom)```
 
 For example, the hashchain for the block at height `H` will be 
 
-```block_hashchain_H = hash(chain_id || contract_account_id || H.to_be_bytes() || precomputed_hashchain || txs_hash_H)```
+```block_hashchain_H = hash(chain_id || contract_account_id || H.to_be_bytes() || precomputed_hashchain || txs_hash_H || txs_logs_bloom_H)```
 
 and the hashchain for the following block will be
 
-```block_hashchain_H_plus_1 = hash(chain_id || contract_account_id || (H + 1).to_be_bytes() || block_hashchain_H || txs_hash_H_plus_1)```
+```block_hashchain_H_plus_1 = hash(chain_id || contract_account_id || (H + 1).to_be_bytes() || block_hashchain_H || txs_hash_H_plus_1 || txs_logs_bloom_H_plus_1)```
 
 The standard `keccak256` hashing function will be used for all the hashes.
 
@@ -76,16 +83,10 @@ To get the global root hash of the structure, i.e. the `txs_hash` of a block whe
 It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way, we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So, if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
 
 ```
-block_hashchain_H_prime          = hash(chain_id || contract_account_id || (H').to_be_bytes() || block_hashchain_H_prime_minus_one || txs_hash_H_prime)
-block_hashchain_H_prime_plus_one = hash(chain_id || contract_account_id || (H' + 1).to_be_bytes() || block_hashchain_H_prime || 0x00)
-block_hashchain_H_prime_plus_two = hash(chain_id || contract_account_id || (H' + 2).to_be_bytes() || block_hashchain_H_prime_plus_one || txs_hash_H_prime_plus_two)
+block_hashchain_H_prime          = hash(chain_id || contract_account_id || (H').to_be_bytes() || block_hashchain_H_prime_minus_one || txs_hash_H_prime || txs_logs_bloom_H_prime)
+block_hashchain_H_prime_plus_one = hash(chain_id || contract_account_id || (H' + 1).to_be_bytes() || block_hashchain_H_prime || 0x00 || 0x00***)
+block_hashchain_H_prime_plus_two = hash(chain_id || contract_account_id || (H' + 2).to_be_bytes() || block_hashchain_H_prime_plus_one || txs_hash_H_prime_plus_two || txs_logs_bloom_H_prime_plus_two)
 ```
-
-### Optional extension
-
-Depending on the viability of computing the EVM logs bloom filter in the engine itself (need to figure out how much gas that would cost), then the block hashchain should include that as well.
-
-```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash || hash(logs_bloom))```
 
 ### Cryptographic Verification
 
@@ -190,48 +191,48 @@ These are the statistics that we show per delta:
 Average (Ave), Median (Med), Minimum (Min), Maximum (Max), Average Absolute Deviation (AAD), Variance (Var), and Standard Deviation (SD).
 
 Test1 Delta:
-Ave: 392670440812.5529
-Med: 384785219046
-Min: 365164609854
-Max: 512002347045
-AAD: 19861424298.73245
-Var: 698513588498622000000
-SD : 26429407645.625015
+Ave: 453177975598.3647
+Med: 445037423505
+Min: 425679273477
+Max: 572577894612
+AAD: 19802253247.994835
+Var: 697395477625485500000
+SD : 26408246394.364876
 
 Test2 Delta:
-Ave: 397157879369.9092
-Med: 388695776664
-Min: 365882875842
-Max: 577012129014
-AAD: 20665418073.476196
-Var: 797426220240113900000
-SD : 28238736165.77261
+Ave: 457749007212.3633
+Med: 449238413991
+Min: 426419287881
+Max: 637521856101
+AAD: 20644841491.551567
+Var: 796410880964748800000
+SD : 28220752664.74565
 
 Test3 Delta:
-Ave: 503502122162.7
-Med: 519593046540
-Min: 402237127974
-Max: 570049032726
-AAD: 45825302709.9
-Var: 2830589450205487700000
-SD : 53203284205.07034
+Ave: 555763332385.5
+Med: 571837554816
+Min: 454648655718
+Max: 622351133922
+AAD: 45833283443.1
+Var: 2829685596386189400000
+SD : 53194789184.52624
 
 Test4 Delta:
-Ave: 559254338036.4
-Med: 559287366228
-Min: 557158796748
-Max: 561250794750
-AAD: 838216515.3599854
-Var: 1676081056997748500
-SD : 1294635491.9427123
+Ave: 610743227202
+Med: 610706650236
+Min: 608897310084
+Max: 612698875218
+AAD: 782259206.4
+Var: 1447196558467091700
+SD : 1202994828.944452
 
 #### Analysis
 
-Tests 1 and 2 are focused on executing transactions on the same block, which is the most common case as only one transaction triggers the change in block height. For these the average increase observed (delta ave) is less than 0.4  Tgas, and the maximums are less than 0.6 Tgas.
+Tests 1 and 2 are focused on executing transactions on the same block, which is the most common case as only one transaction triggers the change in block height. For these the average increase observed (delta ave) is less than 0.46  Tgas, and the maximums are less than 0.64 Tgas.
 
-Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is the most extensive one. Both show average and max increases of less than 0.6 Tgas.
+Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is the most extensive one. Both show average and max increases of less than 0.62 Tgas.
 
-An increase of 0.6 Tgas is a small amount so we should be fine. For reference, the transaction gas limit is 300 Tgas.
+An increase of 0.64 or 0.62 Tgas is a small amount so we should be fine. For reference, the transaction gas limit is 300 Tgas.
 
 ## Security Considerations
 
@@ -266,11 +267,11 @@ In another case, let’s assume that the attempt is to add a transaction to `B`.
 
 In summary, any change to the transactions of `B`, would result in a different value `txs_hash_2` of the transactions hash. Having a different value of the transactions hash, then the block hashchain of `B` should be "different", because of `P2` and `P0`. So `block_hashchain_B_1 != block_hashchain_B_2` (probabilistically speaking), by applying properties `P2` and `P0`.
 
-It is worth also mentioning that any attempts to tamper with the block height or to use a different previous block hashchain, would result also in a "different" block hashchain value for `B`, because of `P2` and `P0` too.
+It is worth also mentioning that any attempts to tamper with the block height, or to use a different previous block hashchain, or change the logs bloom, would result also in a "different" block hashchain value for `B`, because of `P2` and `P0` too.
 
 Finally, once the block hashchain of a block in the stream has changed, then we can claim that the computed block hashchain of the last completed block of the stream would be "different" from the known one in the Engine. This is because the computation of the block hashchain is the composition of hashing functions, so `P1` applies:
 
-```block_hashchain = hash(chain_id_ || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash)```
+```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash || txs_logs_bloom)```
 
 ## Copyright
 
