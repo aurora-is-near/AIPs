@@ -102,9 +102,51 @@ This includes functions:
 * `set_paused_flags`
 * `get_accounts_counter`
 
-These functions must be implemented in the new contract, and rewritten using the library 
-(near-sdk)[https://crates.io/crates/near-sdk]. In Aurora Contract, 
-these functions must cross-contract call to the new Aurora NEP-141 contract.
+These functions implemented on Aurora Engine side. And only functions related to
+NEP-141 must be implemented in the new contract, and rewritten using the library 
+(near-sdk)[https://crates.io/crates/near-sdk]. 
+
+#### The new functions list
+- is_used_proof
+- get_bridge_prover
+- ft_transfer
+- ft_transfer_call
+- ft_total_supply
+- ft_balance_of
+- engine_ft_transfer
+- engine_ft_transfer_call
+- set_engine_account
+- remove_engine_account
+- get_engine_accounts
+- engine_storage_deposit
+- engine_storage_withdraw
+- engine_storage_unregister
+- ft_resolve_transfer
+- ft_metadata
+- get_accounts_counter
+- get_paused_flags
+- set_paused_flags
+- set_access_right
+- get_access_right
+- is_owner
+- withdraw
+- engine_withdraw
+- deposit
+- finish_deposit
+- migrate
+- check_migration_correctness
+
+Where `engine_` prefix mean functions that can be called only from Aurora Engine.
+
+`set_engine_account` - should set engine account NEAR address.
+
+`is_owner` - should check is current account caller is owner of contract.
+
+And `set_access_right`, `get_access_right` - access right management functions.
+
+The `Migration` functions is private and under feature flag. Should be used once.
+
+In Aurora Contract, NEP-141 related functions must cross-contract call to the new Aurora NEP-141 contract.
 However, in the future these public functions will be removed and calls 
 will only be possible directly through the new contract.
 
@@ -114,7 +156,7 @@ Aurora contract was originally implemented via a `no-std` approach,
 without using the `near-sdk` library. When making the NEP-141 logic 
 into a separate contract, the existing NEP-141 template must used, 
 which is based on the library 
-(near-sdk)[https://crates.io/crates/near-sdk]. The main goal is 
+[near-sdk](https://crates.io/crates/near-sdk) and [near-contract-standards](https://crates.io/crates/near-contract-standards)````S`SA```. The main goal is 
 unification with the existing approaches for the implementation of 
 Fungible Tokens of NEAR smart contracts.
 
