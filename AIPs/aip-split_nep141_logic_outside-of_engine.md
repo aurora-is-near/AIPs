@@ -60,12 +60,15 @@ security-related issues. And this is not only about flexibility, but
 also about reliability and stability.
 
 It is **worth noting** that the new contract with the NEP-141 logic is 
-available for interaction only with the Aurora contract. This means 
-that no user or third party contract can access it. At the same time, 
-the end user and third-party contracts will not notice any changes when 
+available for interaction outside of the Aurora contract. This means 
+that user or third party contract can access it from direct calls to new contract. 
+At the same time, the end user and third-party contracts will not notice any changes when 
 interacting with the Aurora contract. In a practical sense, this means 
 that no edits or changes need to be made to the interaction with the 
 Aurora contract. The interaction interface remains the same.
+
+However, in the future NEP-141 public functions will be removed 
+and calls will only be possible directly through the new contract.
 
 ## Specification
 
@@ -102,6 +105,8 @@ This includes functions:
 These functions must be implemented in the new contract, and rewritten using the library 
 (near-sdk)[https://crates.io/crates/near-sdk]. In Aurora Contract, 
 these functions must cross-contract call to the new Aurora NEP-141 contract.
+However, in the future these public functions will be removed and calls 
+will only be possible directly through the new contract.
 
 ### Significant changes
 
@@ -128,7 +133,7 @@ All the functionality of NEP-141 must moved to new contract, namely:
 
 Any reading or writing of data and use of functions that relate to 
 NEP-141 within the entire Aurora Contract must be rewritten to 
-cross-contract calls to the new contract.
+cross-contract calls to the new contract. And in the future removed.
 
 As said previously it will certainly has 1 block time added to NEP-141 
 interaction, but we must mitigate this by enabling contract access 
@@ -143,8 +148,7 @@ Data migration is carried out in several stages:
 3. Starting from the block for which the snapshot was taken, it starts the indexer - which collects data on the current state of the contract.
 4. After a successful migration of data from the snapshot, the contract and the bridge are paused, and the second stage of migration is started - received from the indexer.
 5. Checking the integrity and correctness of data after migration.
-6. After testing a successful data transfer - the NEP-141 data must 
-deleted and the read-only mode must be disabled,
+6. After testing a successful data transfer - the read-only mode must be disabled,
 
 We must also make sure:
 
@@ -173,6 +177,9 @@ This splitting of logic implies that the end user retains the Interface
 will not notice any changes and is not required to make any edits or 
 changes to interact with the Aurora contract.
 
+After some pending period, eth-connector functions should be removed 
+and the NEP-141 calls should be directed to the new contract.
+
 ## Test Cases
 
 The current unit tests for the NEP-141 logic must transferred to 
@@ -192,7 +199,8 @@ for NEP-141.
 
 It is important to note that the current implementation of Aurora uses 
 a no-std implementation. The use of an existing template implies the 
-use of `std` as well as `near-sdk`.
+use of `std` as well as `near-sdk`, and actually: [near-contract-standards](https://crates.io/crates/near-contract-standards).
+It mean usage of standard NEAR library for NEP-141.
 
 ## Security Considerations
 
@@ -204,7 +212,7 @@ potential security problems.
 Pitfalls to watch out for:
 
 * new contract codebase - the current codebase that has been polished 
-for 1.5 years is stable and tested. The new contract code includes the 
+for 2 years is stable and tested. The new contract code includes the 
 risks of finding bugs or vulnerabilities
 
 * data validation - all data related to the NEP-141 logic must be 
