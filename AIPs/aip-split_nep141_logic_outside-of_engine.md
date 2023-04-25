@@ -1,0 +1,299 @@
+---
+aip: 5
+title: Split NEP-141 logic outside of Engine
+description: Split NEP-141 logic outside of Engine as separate independent smart contract.
+author: Evgeny Ukhanov (@mrLSD)
+discussions-to: https://forum.aurora.dev/t/split-nep-141-logic-outside-of-engine/368
+status: Draft
+type: Standards Track
+category: Aurora-Engine
+created: 2022-07-14
+---
+
+## Abstract
+
+Currently, the NEP-141 logic is one of the main parts of the Aurora 
+contract. NEP-141 - implements the fungible token logic, which is the 
+link between the NEAR NEP-141 tokens and Aurora ERC-20 compatible tokens.
+
+Due to the specifics of the original goals of the Aurora contract, 
+the logic of NEP-141 has become an integral part of the core contract itself.
+
+However, further use and development of Aurora showed that this solution 
+has a number of shortcomings, which are proposed to be solved in this 
+proposal.
+
+In the most general form, these include:
+
+* improved security (due to a number of vulnerabilities found recently)
+
+* more flexible changes (this will not require updating the entire aurora contract)
+
+The result of the split will be a separate contract that the Aurora 
+contract interacts with through cross-contract calls.
+
+## Motivation
+
+One of the features of NEAR contracts is the interaction between 
+contracts. Due to this approach, it is possible to create an entire 
+NEAR ecosystem. One of the important features is the ability to use 
+third-party contracts through cross-contract calls.
+
+Putting the logic of NEP-141 into a separate contract solves important 
+tasks, the cornerstone of which is the interaction between contracts:
+
+* a separate code base, and as a result, the development of the contract, 
+independent of the development of the Aurora contract
+
+* flexible contract deployment. Changes to the new contract will not 
+affect the Aurora contract. And this excludes the generation of new 
+errors, due to the immutability of the Aurora contract.
+
+* quick and precise response and corrections in case of errors or other 
+emergency situations
+
+We especially note that isolating the functionality and placing it in a 
+separate contract, including through isolating the code base, the 
+process of developing and deploying the contract, solves an important 
+security problem: faster detection and quick response to 
+security-related issues. And this is not only about flexibility, but 
+also about reliability and stability.
+
+It is **worth noting** that the new contract with the NEP-141 logic is 
+available for interaction outside of the Aurora contract. This means 
+that user or third party contract can access it from direct calls to new contract. 
+At the same time, the end user and third-party contracts will not notice any changes when 
+interacting with the Aurora contract. In a practical sense, this means 
+that no edits or changes need to be made to the interaction with the 
+Aurora contract. The interaction interface remains the same.
+
+However, in the future NEP-141 public functions will be removed 
+and calls will only be possible directly through the new contract.
+
+## Specification
+
+* [NEP-141 Fungible Tokens specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
+
+* [NEP-141 Fungible Tokens Reference implementation](https://github.com/near/near-sdk-rs/tree/master/near-contract-standards/src/fungible_token)
+
+**Aurora contract** has advanced functionality compared to the reference implementation. 
+This includes functions:
+
+* `ft_transfer`
+* `ft_transfer_call`
+* `ft_total_supply`
+* `ft_total_eth_supply_on_aurora`
+* `ft_total_eth_supply_on_near`
+* `ft_balance_of`
+* `ft_balance_of_eth`
+* `ft_resolve_transfer`
+* `storage_deposit`
+* `storage_withdraw`
+* `storage_unregister`
+* `storage_balance_bounds`
+* `storage_balance_of`
+* `finish_deposit`
+* `deposit`
+* `withdraw`
+* `set_eth_connector_contract_data`
+* `new_eth_connector`
+* `is_used_proof`
+* `get_paused_flags`
+* `set_paused_flags`
+* `get_accounts_counter`
+
+These functions implemented on Aurora Engine side. And only functions related to
+NEP-141 must be implemented in the new contract, and rewritten using the library 
+(near-sdk)[https://crates.io/crates/near-sdk]. 
+
+#### The new functions list
+- is_used_proof
+- get_bridge_prover
+- ft_transfer
+- ft_transfer_call
+- ft_total_supply
+- ft_balance_of
+- engine_ft_transfer
+- engine_ft_transfer_call
+- set_engine_account
+- remove_engine_account
+- get_engine_accounts
+- engine_storage_deposit
+- engine_storage_withdraw
+- engine_storage_unregister
+- ft_resolve_transfer
+- ft_metadata
+- get_accounts_counter
+- get_paused_flags
+- set_paused_flags
+- set_access_right
+- get_access_right
+- is_owner
+- withdraw
+- engine_withdraw
+- deposit
+- finish_deposit
+- migrate
+- check_migration_correctness
+
+Where `engine_` prefix mean functions that can be called only from Aurora Engine.
+
+`set_engine_account` - should set engine account NEAR address.
+
+`is_owner` - should check is current account caller is owner of contract.
+
+And `set_access_right`, `get_access_right` - access right management functions.
+
+The `Migration` functions is private and under feature flag. Should be used once.
+
+In Aurora Contract, NEP-141 related functions must cross-contract call to the new Aurora NEP-141 contract.
+However, in the future these public functions will be removed and calls 
+will only be possible directly through the new contract.
+
+### Significant changes
+
+Aurora contract was originally implemented via a `no-std` approach, 
+without using the `near-sdk` library. When making the NEP-141 logic 
+into a separate contract, the existing NEP-141 template must used, 
+which is based on the library 
+[near-sdk](https://crates.io/crates/near-sdk) and [near-contract-standards](https://crates.io/crates/near-contract-standards)````S`SA```. The main goal is 
+unification with the existing approaches for the implementation of 
+Fungible Tokens of NEAR smart contracts.
+
+Of the notable changes is the data access and recording model. Previously,
+this was done explicitly, reading and writing data directly through the host 
+functions of the virtual machine. When using `near-sdk`, parameters are 
+passed through function variables, and the library also takes care of 
+writing data. In most cases, this greatly simplifies development.
+
+All the functionality of NEP-141 must moved to new contract, namely:
+* `connector` (EthConnectorContract, EthConnector) 
+* `fungible_token` (FungibleTokenOps)
+* `deposit_event`
+* `log_entry`
+* `proof`
+
+Any reading or writing of data and use of functions that relate to 
+NEP-141 within the entire Aurora Contract must be rewritten to 
+cross-contract calls to the new contract. And in the future removed.
+
+As said previously it will certainly has 1 block time added to NEP-141 
+interaction, but we must mitigate this by enabling contract access 
+to certain methods for this contract through function `promise_batch_action_add_key_with_function_call`
+
+### Data migration
+
+Data migration is carried out in several stages:
+
+1. Before migration, we need to get a snapshot of the contract state for the current block at the time the migration began.
+2. A special tool must be developed that receives NEP-141 data from the snapshot, and starts the process of migrating (writing) data to a new contract.
+3. Starting from the block for which the snapshot was taken, it starts the indexer - which collects data on the current state of the contract.
+4. After a successful migration of data from the snapshot, the contract and the bridge are paused, and the second stage of migration is started - received from the indexer.
+5. Checking the integrity and correctness of data after migration.
+6. After testing a successful data transfer - the read-only mode must be disabled,
+
+We must also make sure:
+
+* that all NEP-141 data has been transferred
+
+* the inability to write and read NEP-14 data simultaneously with the
+Aurora Contract and with the new Aurora NEP-141 contract
+
+* in order to avoid critical errors and data loss - must be data backup
+
+## Rationale
+
+The main design goal is to simplify the logic of the NEP-141, compared 
+to the complicated representation in the current Aurora contract. 
+This should reduce the cognitive load when getting acquainted with 
+the code base and the ability to quickly and efficiently maintain 
+the contract code with a wide range of stakeholders.
+
+## Backwards Compatibility
+
+When splitting the contract and transferring the NEP-141 logic to a 
+separate contract, full backward compatibility is ensured.
+
+This splitting of logic implies that the end user retains the Interface 
+(API) when interacting with the Aurora contract. The end user 
+will not notice any changes and is not required to make any edits or 
+changes to interact with the Aurora contract.
+
+After some pending period, eth-connector functions should be removed 
+and the NEP-141 calls should be directed to the new contract.
+
+## Test Cases
+
+The current unit tests for the NEP-141 logic must transferred to 
+the new contract. They will also be revised and reworked under the 
+terms of an independent contract.
+
+An important feature is that all Aurora tests should still work 
+successfully, since the front end for users and contracts remains 
+the same.
+
+## Reference Implementation
+
+The NEAR template must used as a reference implementation
+for NEP-141.
+
+[NEP-141 Specification](https://nomicon.io/Standards/Tokens/FungibleToken/Core)
+
+It is important to note that the current implementation of Aurora uses 
+a no-std implementation. The use of an existing template implies the 
+use of `std` as well as `near-sdk`, and actually: [near-contract-standards](https://crates.io/crates/near-contract-standards).
+It mean usage of standard NEAR library for NEP-141.
+
+## Security Considerations
+
+One of the reasons for the emergence of AIP is security issues. 
+A number of vulnerabilities that were previously discovered separate 
+the NEP-141 logic into a separate contract. Especially concentrating 
+potential security problems.
+
+Pitfalls to watch out for:
+
+* new contract codebase - the current codebase that has been polished 
+for 2 years is stable and tested. The new contract code includes the 
+risks of finding bugs or vulnerabilities
+
+* data validation - all data related to the NEP-141 logic must be 
+migrated to the new contract. The procedure itself is quite simple. 
+However, an important aspect is that this is ultra-sensitive data that 
+requires special attention, caution, action and guarantees of results.
+
+Nevertheless, taking into account all of the above, the new contract will 
+have the properties of greater security and stability.
+
+One of the important aspects of security is that the new contract will 
+not be available for interaction to other contracts or users, except 
+for the Aurora contract. From the point of view of the external 
+interface of interaction with the Aurora contract, nothing will change.
+
+### Gas cost
+
+One of the side effects of moving the NEP-141 logic into a separate 
+contract could be an increase in the cost of Gas. This is due to 
+cross-contract calls, as well as using the `near-sdk` implementation. 
+Previously, the `no-std` implementation was used, taking into account 
+the reduced gas cost. However, these costs are expected to be 
+negligible compared to the benefits.
+
+### Execution time
+
+Due to the specifics of the cross-contract call, the recipe fall into the 
+next block, which increase the overall execution of the request to one block. 
+In turn, potentially this can lead to security issues that were previously not 
+specific to the logic of interaction with NEP-141.
+
+### Will changes to existing Aurora ecosystem contracts be required?
+
+No changes are needed in the contracts of the Aurora ecosystem, 
+including those related to the logic of the Fungible Token.
+The reason is that the external interface for interacting 
+with the Aurora contract will not change, and the new contract NEP-141 
+is isolated and available for interaction only with the Aurora contract.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
