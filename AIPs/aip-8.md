@@ -26,22 +26,22 @@ The goal of the block hashchain is to enable someone running a non-archival NEAR
 
 ### Genesis Hashchain
 
-Aurora genesis block `G` is the block with the transaction where `aurora` account was created. We will consider the block hashchain of blocks before `G` as zero (`0x00`). 
+Aurora genesis block `G` is the block with the transaction where `aurora` account was created. We will consider the block hashchain of blocks before `G` as zero (`[0u8; 32]`).
 
-For the Engine, at some block height `H` we seed the process with the precomputed hashchain for the block at height `H - 1` using the Refiner (see the note below). This genesis hashchain value will be stored in the Aurora Engine state permanently as a constant (this allows anyone with a non-archival node to view the genesis hashchain because it is always present in the engine state).
+An independent off-chain process will precompute a hashchain seed starting from `G`, and will keep it up to date with the Engine to include recent transactions as soon as possible. For the Engine, at some block height `H` we will pause the Engine so no new write transactions are accepted. This pausing is required to be done by Aurora DAO. We will then insert the hashchian seed on the current block, which most be at height `H + k, k > 0`, compute the small hashchain gap for the `k - 1` blocks in between, and resume the Engine.
 
-We will compute the hashchain for the block at height `H - 1` off-chain using the Refiner and push the value to the Engine as part of the upgrade that includes this functionality. The precomputed hashchain will follow the scheme outlined below starting from `G`.
+From this point the Engine and hashchian mechanism will accept and add all new relevant transactions, so the hashchain will reamin up to date with the contract.
 
 ### Computation
 
 All calls to mutable functions in the Aurora Engine (i.e., the same functions that the Refiner includes in Aurora blocks) will contribute to the “transactions hash” of the block, which is computed using a binary Merkle Tree as follows:
 
 - the “intrinsic transaction hash”, `tx_hash`, of a transaction will be `hash(method_name.len().to_be_bytes() || method_name || input_bytes.len().to_be_bytes() || input_bytes || output_bytes.len().to_be_bytes() || output_bytes)`, where `||` means bytes-concatenation;
-- the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found later. In case there are no transactions on the block, the value will be `0x00`.
+- the “transactions hash”, `txs_hash`, will be the root hash value of the binary Merkle Tree constructed from the executed transactions of the block. Details about this procedure can be found later. In case there are no transactions on the block, the value will be zero (`[0u8; 32]`).
 
-Also, the calls to these functions that return a result including logs, will contribute to the "transactions logs bloom" filter of the block as follows:
+Also, calls to these functions that return a result including logs, will contribute to the "transactions logs bloom" filter of the block as follows:
 
-- we will use bloom filters with an array of `***` bits (`usize` bits depends on the architecture) and `3` hash functions. I.e, `m = ***` and `k = 3`.
+- we will use bloom filters with an array of `2048` bits (`256` bytes) and `3` hash functions. I.e, `m = 2048` and `k = 3`.
 - the "log bloom" of a log, is the result of accrue the log's address bytes and the log's topics bytes.
 - the "intrinsic transaction logs bloom", `tx_logs_bloom`, of a transaction will be the binary `OR` (`|`) of the logs bloom of the transaction's logs.
 - the "transactions logs bloom", `txs_logs_bloom`, will be the binary `OR` (`|`) of the `tx_logs_bloom` of the transactions of the block.
@@ -50,11 +50,11 @@ When there is a change in block height (the Engine will know this has happened b
 
 ```block_hashchain = hash(chain_id || contract_account_id || block_height.to_be_bytes() || previous_block_hashchain || txs_hash || txs_logs_bloom)```
 
-For example, the hashchain for the block at height `H` will be 
+For example, the hashchain for the block at height `H` will be:
 
 ```block_hashchain_H = hash(chain_id || contract_account_id || H.to_be_bytes() || precomputed_hashchain || txs_hash_H || txs_logs_bloom_H)```
 
-and the hashchain for the following block will be
+and the hashchain for the following block will be:
 
 ```block_hashchain_H_plus_1 = hash(chain_id || contract_account_id || (H + 1).to_be_bytes() || block_hashchain_H || txs_hash_H_plus_1 || txs_logs_bloom_H_plus_1)```
 
@@ -80,11 +80,11 @@ To get the global root hash of the structure, i.e. the `txs_hash` of a block whe
 
 ### Skip Blocks
 
-It could be that not every NEAR block contains an Aurora transaction, or indeed it could be that a NEAR block skipped some height; either way, we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So, if the Engine detects a height change of more than one then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
+Not every NEAR block must contain an Aurora transaction, or indeed it could be that a NEAR block skipped some height. Either way, we want to have an Aurora block hashchain for every height (because the Refiner produces blocks at all heights). So, if the Engine detects a height change of more than one, then it will need to compute the intermediate block hashchain before proceeding. For example, if consecutive NEAR blocks had heights `H'`, `H' + 2` then the following sequence of hashchains should be produced:
 
-```
+```text
 block_hashchain_H_prime          = hash(chain_id || contract_account_id || (H').to_be_bytes() || block_hashchain_H_prime_minus_one || txs_hash_H_prime || txs_logs_bloom_H_prime)
-block_hashchain_H_prime_plus_one = hash(chain_id || contract_account_id || (H' + 1).to_be_bytes() || block_hashchain_H_prime || 0x00 || 0x00***)
+block_hashchain_H_prime_plus_one = hash(chain_id || contract_account_id || (H' + 1).to_be_bytes() || block_hashchain_H_prime || [0u8; 32] || [0u8; 256])
 block_hashchain_H_prime_plus_two = hash(chain_id || contract_account_id || (H' + 2).to_be_bytes() || block_hashchain_H_prime_plus_one || txs_hash_H_prime_plus_two || txs_logs_bloom_H_prime_plus_two)
 ```
 
@@ -92,10 +92,7 @@ block_hashchain_H_prime_plus_two = hash(chain_id || contract_account_id || (H' +
 
 #### Blockchain Verification
 
-The engine state will always contain the genesis block hashchain as well as the block hashchain of the last completed block. To verify a given Aurora stream is correct using a non-archival NEAR node do the following:
-
-1. Check the genesis hashchain in the Engine (obtained via a view call to the NEAR node) matches the hashchain in block `G`.
-2. Using the data in the stream, follow the scheme above to compute the hashchain for the block at some recent height and check that hashchain matches the value in the Engine state (obtained via a view call again).
+The engine state will always contain the block hashchain of the last completed block. To verify a given Aurora stream is correct using a non-archival NEAR node, follow the scheme above to compute the hashchain for the block at some recent height, using a know block hashchain value of a previous block as a seed, and check that hashchain matches the value in the Engine state (obtained via a view call again).
 
 If the two values match, then the data must match what happened on-chain. This is called “range verification” because it verifies a whole range of blocks by checking only the endpoint hashchains. The reason this works is that the hashchain includes all the transaction data and block heights in between, thus any change to the local copy of the data should produce an incorrect final hash.
 
@@ -107,7 +104,7 @@ Given a transaction in a block, the corresponding Merkle Proof from the correspo
 
 If by the end of the process, the verifier ends up with a computed `txs_hash` (root hash) that corresponds to the one of the block, then the transaction should belong to the block. To check if the computed `txs_hash` corresponds to the one of the block, the verifier just needs to compute the block hashchain using the info in the block header and the computed `txs_hash`, and compare it with the block hashchain on the header.
 
-The size of the siblings hash nodes sequence is then the height of the tree. As this is a binary balanced tree then for `n` transactions the sequence size is `O(log n)`. Given the transaction and the proof, the verification process is then `O(log n)`.
+The size of the siblings hash nodes sequence is then the height of the tree. As this is a binary balanced tree then for `n` transactions the sequence size is `O(log n)`. Given the transaction and the proof, the verification process takes then `O(log n)`.
 
 ## Rationale
 
@@ -126,7 +123,7 @@ This reduces the memory utilization to `O(1)` since we only need to maintain a f
 
 Paying the price of `O(log n)` in procedure and space to offer faster `O(log n)` transaction proof verification, is reasonable and focuses on the convenient use of our products by our users.
 
-Another alternative would be to compute the block hashchain as a single operation when there is a change in block height. We will need then to store all the 'n' hashes of block transactions when they are received; this will increase considerably the memory usage. When the block height changes, we will need then to run the `O(n)` procedure to compute the full tree hash, plus the final block hashchain computation. This could heavily impact the on-chain performance at that point depending on the number of transactions in the block.
+Another alternative would be to compute the block hashchain as a single operation when there is a change in block height. We will need then to store all the `n` hashes of block transactions when they are received; this will increase considerably the memory usage. When the block height changes, we will need then to run the `O(n)` procedure to compute the full tree hash, plus the final block hashchain computation. This could heavily impact the on-chain performance at that point depending on the number of transactions in the block.
 
 It seems reasonable to distribute the load of the computation by transactions versus the bulk operation at the end.
 
@@ -138,16 +135,14 @@ As this is an addition of a new field to the blocks there should not be any issu
 
 ### Correctnes Tests
 <!-- TODO: Fill following section -->
-<!-- Maybe we can add the following test:
+<!-- We could add the following test:
 Include as part of the assets the Aurora genesis block 'G' and the next block 'N'.
 Add here the result of the txs_hash of 'G' and the hashchain of 'G'.
 Add then the result of the txs_hash of 'N' and the hashchain of 'N' using all the info.-->
 
-Test cases for an implementation are mandatory for AIPs that are affecting consensus changes. If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/aip-####/`.
-
 ### Benchmark Tests
 
-To measure the impact on gas consumption of the block hashchain computation, we ran some tests against a base branch and the hashchain branch. After getting the raw gas consumption results from both, we found the delta (difference) between them and used some statistics to show the impact. 
+To measure the impact on gas consumption of the block hashchain computation, we ran some tests against a base branch and the hashchain branch. After getting the raw gas consumption results from both, we found the delta (difference) between them and use some statistics to show the impact.
 
 Base Branch:
 https://github.com/Casuso/aurora-engine_bechmark/tree/block_txs_benchmark
@@ -170,14 +165,16 @@ The input is an array where each position `i` is the number of transactions to i
 The output is an array where each position `i` is the gas profiled of the extra transaction to change the height.
 
 For the A type, we did two tests:
+
 1. Test1 input: `255` transactions.
 This covers ending in an almost full binary tree.
 2. Test2 input: `1024` transactions.
 This covers ending in a full binary tree.
 
 For the B type, we did two tests:
+
 3. Test3 input: `[128 + 0, 128 + 1, 128 + 2, 128 + 4, 128 + 8, 128 + 16, 128 + 32, 128 + 64, 128 + 16 + 1, 255]`.
-This covers having the bigger and minor heights of subtrees as, 7 and 0, 7 and 1, 7 and 2, ..., 7 and 6. Also covers three heights subtrees with 7, 4, and 1, heights. Finally, it covers the full heights subtree as a result of 255 transactions.
+This covers having the bigger and minor heights (b - m) of subtrees as: 7 - 0, 7 - 1, 7 - 2, ..., 7 - 6. Also covers three heights subtrees with 7, 4, and 1, heights. Finally, it covers the full heights subtree as a result of 255 transactions.
 4. Test4 input: `[129, 131, 133, 135, 137]`.
 This covers odds number of transactions, that will result in two or more subtrees, one of max height 7 (128), the other of min height 1 (1), and some in between. This will force the worse hashchain computation from min height 1 to max height 7.
 
@@ -187,7 +184,7 @@ In the file /assets/api-8/benchamark-tests you can find the test outputs per bra
 
 #### Statistics
 
-These are the statistics that we show per delta:
+These are the statistics that we use per delta:
 Average (Ave), Median (Med), Minimum (Min), Maximum (Max), Average Absolute Deviation (AAD), Variance (Var), and Standard Deviation (SD).
 
 Test1 Delta:
@@ -228,17 +225,17 @@ SD : 1202994828.944452
 
 #### Analysis
 
-Tests 1 and 2 are focused on executing transactions on the same block, which is the most common case as only one transaction triggers the change in block height. For these the average increase observed (delta ave) is less than 0.46  Tgas, and the maximums are less than 0.64 Tgas.
+Tests 1 and 2 are focused on executing transactions on the same block, which is the most common case as only one transaction triggers the change in block height. For these the average increase observed (delta ave) is less than 0.46 Tgas, and the maximums are less than 0.64 Tgas.
 
-Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is the most extensive one. Both show average and max increases of less than 0.62 Tgas.
+Tests 3 and 4 are focused on executing a transaction on a block height change, that triggers the block hashchain computation, which is the most expensive one. Both show average and max increases of less than 0.62 Tgas.
 
-An increase of 0.64 or 0.62 Tgas is a small amount so we should be fine. For reference, the transaction gas limit is 300 Tgas.
+An increase of 0.64 or 0.62 Tgas is a relavite small amount so we should be fine. For reference, the transaction gas limit is 300 Tgas.
 
 ## Security Considerations
 
 The security considerations of the block hashchain should be focused on the possible attempts to break the Aurora blockchain cryptographic verification that it aims to offer.
 
-Given the genesis block hashchain as well as the block hashchain of the last completed block from the Engine, we can verify an Aurora stream following the procedure described above on Cryptographic Verification. We show that any change to the stream would produce an incorrect final hash different from the one of the last completed block from the Engine.
+Given a seed block hashchain as well as the block hashchain of the last completed block from the Engine, we can verify an Aurora stream following the procedure described above on Cryptographic Verification. We show that any change to the stream would produce an incorrect final hash different from the one of the last completed block from the Engine.
 
 We will describe some important properties and then proceed to test the possible break attempts. Through the text, we will use the word different in between quotes, "different", to denote a highly probably difference. This is to avoid repeatedly clarifications.
 
@@ -254,7 +251,7 @@ Every parameter, on the transactions hash computation and on the final block has
 
 Without losing generality, let’s assume that a bad actor attempts to change at least the `input` value of a transaction `t_x` in a block `B`. Below are the original `_1` and new `_2` computations of the intrinsic transaction hash of `t_x`.
 
-```
+```text
 intrinsic_tx_hash_1 = hash(method_name.len().to_be_bytes() || method_name || input_bytes_1.len().to_be_bytes() || input_bytes_1 || output_bytes.len().to_be_bytes() || output_bytes)
 intrinsic_tx_hash_2 = hash(method_name.len().to_be_bytes() || method_name || input_bytes_1.len().to_be_bytes() || input_bytes_1 || output_bytes.len().to_be_bytes() || output_bytes)
 ```
