@@ -4,7 +4,7 @@ title: Aurora Block Hashchain
 description: Introduction of an additional block field for Aurora blockchain cryptographic verification.
 author: Michael Birch (@birchmd), Leandro Casuso Montero (@Casuso)
 discussions-to: https://hackmd.io/@birchmd/rJXGBMnoj
-status: Draft
+status: Final
 type: Standards Track
 category (*only required for Standards Track): Aurora-Engine
 created: 2023-02-07
