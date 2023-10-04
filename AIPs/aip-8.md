@@ -133,7 +133,7 @@ As this is an addition of a new field to the blocks there should not be any issu
 
 ## Test Cases
 
-### Correctnes Tests
+### Correctness Tests
 
 Various correctness tests can be found in the reference implementation. See
 
