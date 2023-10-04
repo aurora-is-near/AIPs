@@ -134,11 +134,11 @@ As this is an addition of a new field to the blocks there should not be any issu
 ## Test Cases
 
 ### Correctnes Tests
-<!-- TODO: Fill following section -->
-<!-- We could add the following test:
-Include as part of the assets the Aurora genesis block 'G' and the next block 'N'.
-Add here the result of the txs_hash of 'G' and the hashchain of 'G'.
-Add then the result of the txs_hash of 'N' and the hashchain of 'N' using all the info.-->
+
+Various correctness tests can be found in the reference implementation. See
+
+- [engine-hashchain/src/tests.rs](https://github.com/aurora-is-near/aurora-engine/blob/3.1.0/engine-hashchain/src/tests.rs)
+- [engine-tests/src/tests/hashchain.rs](https://github.com/aurora-is-near/aurora-engine/blob/3.1.0/engine-tests/src/tests/hashchain.rs)
 
 ### Benchmark Tests
 
