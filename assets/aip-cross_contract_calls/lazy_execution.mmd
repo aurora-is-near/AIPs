@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant User
+    participant aurora
+    participant 0xbeef
+    participant XCC
+    participant 0xbeef.aurora
+    participant berryclub.near
+
+    User ->> aurora: Submit transaction
+    alt Execution on the EVM
+        aurora ->> 0xbeef:
+        0xbeef ->> XCC: Precompiled is called <br> to execute promise P
+        Note over aurora,XCC: Transaction finish successfully.
+    end
+
+    aurora ->> 0xbeef.aurora: Store info from P on the router
+
+    User ->> 0xbeef.aurora: Trigger the execution of promise P
+    0xbeef.aurora ->> berryclub.near: Target contract on NEAR <br> is executed arguments <br> from promise P
+
